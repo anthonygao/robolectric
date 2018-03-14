@@ -1,27 +1,24 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertNotNull;
+
 import android.preference.PreferenceActivity;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
 import org.robolectric.Robolectric;
-import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertNotNull;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowPreferenceActivityTest {
 
   private TestPreferenceActivity activity;
-  private ShadowPreferenceActivity shadow;
 
   @Before
   public void setUp() throws Exception {
     activity = Robolectric.buildActivity(TestPreferenceActivity.class).create().get();
-    shadow = Shadows.shadowOf(activity);
   }
 
   @Test
@@ -33,13 +30,6 @@ public class ShadowPreferenceActivityTest {
   public void shouldNotInitializePreferenceScreen() {
     TestPreferenceActivity activity = Robolectric.buildActivity(TestPreferenceActivity.class).get();
     assertThat(activity.getPreferenceScreen()).isNull();
-  }
-
-  @Test
-  public void shouldRecordPreferencesResourceId() {
-    assertThat(shadow.getPreferencesResId()).isEqualTo(-1);
-    activity.addPreferencesFromResource(R.xml.preferences);
-    assertThat(shadow.getPreferencesResId()).isEqualTo(R.xml.preferences);
   }
 
   @Test
@@ -62,6 +52,7 @@ public class ShadowPreferenceActivityTest {
     assertNotNull(activity.findPreference("preference_resource_key_value"));
   }
 
+  @SuppressWarnings("FragmentInjection")
   private static class TestPreferenceActivity extends PreferenceActivity {
   }
 }

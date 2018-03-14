@@ -40,7 +40,16 @@ def concat_maven_file_segments(repo_root_dir, group_id, artifact_id, version, ex
 end
 
 def install(group_id, artifact_id, version, archive)
-  system("mvn -q install:install-file -DgroupId='#{group_id}' -DartifactId='#{artifact_id}' -Dversion='#{version}' -Dfile='#{archive}' -Dpackaging=jar")
+  run("mvn -q install:install-file -DgroupId='#{group_id}' -DartifactId='#{artifact_id}' -Dversion='#{version}' -Dfile='#{archive}' -Dpackaging=jar") || exit(1)
+end
+
+def get_dependency(group_id, artifact_id, version, packaging)
+  run("mvn -q dependency:get -DrepoUrl=http://maven.google.com -DgroupId='#{group_id}' -DartifactId='#{artifact_id}' -Dversion='#{version}' -Dpackaging='#{packaging}' -Dtransitive=false") || exit(1)
+end
+
+def run(args)
+  puts "> #{args}"
+  system args
 end
 
 def install_jar(group_id, artifact_id, version, archive, &block)
@@ -56,13 +65,15 @@ def install_jar(group_id, artifact_id, version, archive, &block)
 end
 
 def install_aar(repo_root_dir, group_id, artifact_id, version, &block)
+  return if already_have?(group_id, artifact_id, version, "jar")
+
   # Don't move further if we have an invalid repo root directory
   unless File.exists?(repo_root_dir)
     puts "Repository #{repo_root_dir} not found!"
     puts "Make sure that the 'ANDROID_HOME' Environment Variable is properly set in your development environment pointing to your SDK installation directory."
     exit 1
   end
-  
+
   archive = concat_maven_file_segments(repo_root_dir, group_id, artifact_id, version, "aar")
 
   puts "Installing AAR #{group_id}:#{artifact_id}, version #{version} from \'#{archive}\'."
@@ -73,44 +84,66 @@ def install_aar(repo_root_dir, group_id, artifact_id, version, &block)
   end
 end
 
-def install_map(group_id, artifact_id, api, revision)
-  dir  = "#{ADDONS}/addon-google_apis-google-#{api}"
-  path = "#{dir}/libs/maps.jar"
+def already_have?(group_id, artifact_id, version, extension)
+  jar_file = concat_maven_file_segments(MVN_LOCAL, group_id, artifact_id, version, extension)
+  exists = File.exist?(jar_file)
+  puts "Already have #{jar_file}!" if exists
+  exists
+end
 
+def install_stubs(api)
+  return if already_have?("com.google.android", "android-stubs", "#{api}", "jar")
+
+  path  = "#{ANDROID_HOME}/platforms/android-#{api}/android.jar"
   unless File.exists?(path)
-    puts "#{group_id}:#{artifact_id} not found!"
-    puts "Make sure that 'Google APIs' is up to date in the SDK manager for API #{api}."
+    puts "#{path} not found!"
+    puts "Make sure that 'SDK Platform' is up to date in the SDK manager for API #{api}."
     exit 1
   end
 
-  version = `grep --color=never ^revision= "#{dir}/manifest.ini" | cut -d= -f2`
-  if version.strip != revision
-    puts "#{group_id}:#{artifact_id} is an incompatible revision!"
-    puts "Make sure that 'Google APIs' is up to date in the SDK manager for API #{api}. Expected revision #{revision} but was #{version}."
-    exit 1
-  end
+  puts "Installing stubs jar at com.google.android:android-stubs:#{api}."
+  install("com.google.android", "android-stubs", "#{api}", path)
+end
 
-  puts "Installing Maps API #{group_id}:#{artifact_id}, API #{api}, version #{version}, revision #{revision}."
-  install(group_id, artifact_id, "#{api}_r#{revision}", path)
+def install_supportlib_from_gmaven(artifact_id)
+  install_from_gmaven(ANDROID_SUPPORT_GROUP_ID, artifact_id, SUPPORT_LIBRARY_VERSION)
+end
+
+def install_from_gmaven(group_id, artifact_id, version)
+  return if already_have?(group_id, artifact_id, version, "jar")
+
+  get_dependency(group_id, artifact_id, version, "aar")
+  install_aar(MVN_LOCAL, group_id, artifact_id, version)
 end
 
 # Local repository paths
-ADDONS = "#{ENV['ANDROID_HOME']}/add-ons"
-GOOGLE_REPO  = "#{ENV['ANDROID_HOME']}/extras/google/m2repository"
-ANDROID_REPO = "#{ENV['ANDROID_HOME']}/extras/android/m2repository"
+ANDROID_HOME = ENV['ANDROID_HOME']
+ADDONS = "#{ANDROID_HOME}/add-ons"
+GOOGLE_REPO  = "#{ANDROID_HOME}/extras/google/m2repository"
+ANDROID_REPO = "#{ANDROID_HOME}/extras/android/m2repository"
+MVN_LOCAL = File.expand_path("~/.m2/repository")
 
 # Android Support libraries maven constants
 ANDROID_SUPPORT_GROUP_ID = "com.android.support"
 MULTIDEX_ARTIFACT_ID = "multidex"
 SUPPORT_V4_ARTIFACT_ID = "support-v4"
+SUPPORT_COMPAT_ARTIFACT_ID = "support-compat"
+SUPPORT_CORE_UI_ARTIFACT_ID = "support-core-ui"
+SUPPORT_CORE_UTILS_ARTIFACT_ID = "support-core-utils"
+SUPPORT_FRAGMENT_ARTIFACT_ID = "support-fragment"
 APPCOMPAT_V7_ARTIFACT_ID = "appcompat-v7"
 INTERNAL_IMPL_ARTIFACT_ID = "internal_impl"
 
 # Android Support library versions (plus trailing version)
-SUPPORT_LIBRARY_TRAILING_VERSION = "23.1.1"
-SUPPORT_LIBRARY_VERSION = "23.2.0"
+# SUPPORT_LIBRARY_TRAILING_VERSION = "23.2.0"
+SUPPORT_LIBRARY_VERSION = "26.0.1"
 MULTIDEX_TRAILING_VERSION = "1.0.0"
 MULTIDEX_VERSION = "1.0.1"
+
+# Android Support test versions
+ANDROID_SUPPORT_TEST_GROUP_ID = "com.android.support.test"
+MONITOR_ARTIFACT_ID = "monitor"
+ANDROID_SUPPORT_TEST_VERSION = "1.0.2-alpha1"
 
 # Play Services constants
 PLAY_SERVICES_GROUP_ID = "com.google.android.gms"
@@ -120,46 +153,48 @@ PLAY_SERVICES_GROUP_ID = "com.google.android.gms"
 PLAY_SERVICES_VERSION_6_5_87 = "6.5.87"
 PLAY_SERVICES_LEGACY = "play-services"
 
-# Play Services Base and Basement modules, version 8.3.0
+# Play Services Base and Basement modules, version 8.4.0 (plus trailing version)
 # Current "play-services" artifact no longer references each sub-module directly. When you
 # Extract its AAR, it only contains a manifest and blank res folder.
 # 
 # As a result, we now have to install "play-services-base" and "play-services-basement"
 # separately and use those versions instead.
-PLAY_SERVICES_VERSION = "8.3.0"
+PLAY_SERVICES_TRAILING_VERSION = "8.3.0"
+PLAY_SERVICES_VERSION = "8.4.0"
 PLAY_SERVICES_BASE = "play-services-base"
 PLAY_SERVICES_BASEMENT = "play-services-basement"
 
-# Maps API maven constants
-MAPS_GROUP_ID = "com.google.android.maps"
-MAPS_ARTIFACT_ID = "maps"
-MAPS_API_VERSION = "23"
-MAPS_REVISION_VERSION = "1"
-
 # Mavenize all dependencies
 
-install_map(MAPS_GROUP_ID, MAPS_ARTIFACT_ID, MAPS_API_VERSION, MAPS_REVISION_VERSION)
+install_stubs('P')
 
 install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, MULTIDEX_ARTIFACT_ID, MULTIDEX_TRAILING_VERSION)
 
 install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, MULTIDEX_ARTIFACT_ID, MULTIDEX_VERSION)
 
-install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, APPCOMPAT_V7_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION)
+# install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, APPCOMPAT_V7_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION)
 
-install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, APPCOMPAT_V7_ARTIFACT_ID, SUPPORT_LIBRARY_VERSION)
+install_supportlib_from_gmaven(APPCOMPAT_V7_ARTIFACT_ID)
 
 install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_LEGACY, PLAY_SERVICES_VERSION_6_5_87)
 
+install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TRAILING_VERSION)
+
 install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_VERSION)
+
+install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_TRAILING_VERSION)
 
 install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_VERSION)
 
-install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, SUPPORT_V4_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION) do |dir|
+# install_aar(MVN_LOCAL, ANDROID_SUPPORT_GROUP_ID, SUPPORT_V4_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION) do |dir|
+  # install_jar(ANDROID_SUPPORT_GROUP_ID, INTERNAL_IMPL_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION, "#{dir}/libs/#{INTERNAL_IMPL_ARTIFACT_ID}-#{SUPPORT_LIBRARY_TRAILING_VERSION}.jar")
+# end
 
-  install_jar(ANDROID_SUPPORT_GROUP_ID, INTERNAL_IMPL_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION, "#{dir}/libs/#{INTERNAL_IMPL_ARTIFACT_ID}-#{SUPPORT_LIBRARY_TRAILING_VERSION}.jar")
-end
+install_supportlib_from_gmaven(SUPPORT_V4_ARTIFACT_ID)
+install_supportlib_from_gmaven(SUPPORT_COMPAT_ARTIFACT_ID)
+install_supportlib_from_gmaven(SUPPORT_CORE_UI_ARTIFACT_ID)
+install_supportlib_from_gmaven(SUPPORT_CORE_UTILS_ARTIFACT_ID)
+install_supportlib_from_gmaven(SUPPORT_FRAGMENT_ARTIFACT_ID)
+install_supportlib_from_gmaven('support-media-compat')
 
-install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, SUPPORT_V4_ARTIFACT_ID, SUPPORT_LIBRARY_VERSION) do |dir|
-
-  install_jar(ANDROID_SUPPORT_GROUP_ID, INTERNAL_IMPL_ARTIFACT_ID, SUPPORT_LIBRARY_VERSION, "#{dir}/libs/#{INTERNAL_IMPL_ARTIFACT_ID}-#{SUPPORT_LIBRARY_VERSION}.jar")
-end
+install_from_gmaven(ANDROID_SUPPORT_TEST_GROUP_ID, MONITOR_ARTIFACT_ID, ANDROID_SUPPORT_TEST_VERSION)

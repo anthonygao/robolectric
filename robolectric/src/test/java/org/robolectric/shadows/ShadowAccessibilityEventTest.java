@@ -1,21 +1,20 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.Notification;
 import android.os.Parcel;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.TextView;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.WithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowAccessibilityEventTest {
 
   private AccessibilityEvent event;
@@ -46,10 +45,10 @@ public class ShadowAccessibilityEventTest {
   }
 
   @Test
-  public void shouldEqualToClonedEvent() {
+  public void shouldBeEqualToClonedEvent() {
     shadow.setEventType(AccessibilityEvent.TYPE_ANNOUNCEMENT);
     AccessibilityEvent newEvent = ShadowAccessibilityEvent.obtain(event);
-    assertThat(shadow.equals(newEvent)).isEqualTo(true);
+    assertThat(event.equals(newEvent)).isEqualTo(true);
     newEvent.recycle();
   }
 

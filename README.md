@@ -1,15 +1,16 @@
 <a name="README">[<img src="https://rawgithub.com/robolectric/robolectric/master/images/robolectric-horizontal.png"/>](http://robolectric.org)</a>
 
-[![Build Status](https://secure.travis-ci.org/robolectric/robolectric.png?branch=master)](http://travis-ci.org/robolectric/robolectric)
+[![Build Status](https://travis-ci.org/robolectric/robolectric.svg?branch=master)](https://travis-ci.org/robolectric/robolectric)
+[![GitHub release](https://img.shields.io/github/release/robolectric/robolectric.svg?maxAge=60)](https://github.com/robolectric/robolectric/releases)
 
-Robolectric is a testing framework that de-fangs the Android SDK so you can test-drive the development of your Android app.
+Robolectric is the industry-standard unit testing framework for Android. With Robolectric, your tests run in a simulated Android environment inside a JVM, without the overhead of an emulator.
 
 ## Usage
 
 Here's an example of a simple test written using Robolectric:
 
 ```java
-@RunWith(RobolectricGradleTestRunner.class)
+@RunWith(RobolectricTestRunner.class)
 @Config(constants = BuildConfig.class)
 public class MyActivityTest {
 
@@ -32,46 +33,33 @@ For more information about how to install and use Robolectric on your project, e
 
 ### Starting a New Project
 
-If you'd like to start a new project with Robolectric you can use deckard (for either [maven](http://github.com/robolectric/deckard-maven) or [gradle](http://github.com/robolectric/deckard-gradle)). These project will guide you through setting up both Android and Robolectric on your machine.
+If you'd like to start a new project with Robolectric tests you can refer to `deckard` (for either [maven](http://github.com/robolectric/deckard-maven) or [gradle](http://github.com/robolectric/deckard-gradle)) as a guide to setting up both Android and Robolectric on your machine.
 
-### Gradle
+#### build.gradle:
 
 ```groovy
-testCompile "org.robolectric:robolectric:3.0"
-```
-
-### Maven
-
-```xml
-<dependency>
-   <groupId>org.robolectric</groupId>
-   <artifactId>robolectric</artifactId>
-   <version>3.0</version>
-   <scope>test</scope>
-</dependency>
+testCompile "org.robolectric:robolectric:3.7.1"
 ```
 
 ## Building And Contributing
 
-Robolectric is built using Maven. Both Eclipse (with the M2Eclipse plug-in) and IntelliJ can import the `pom.xml` file and will automatically generate their project files from it. You will need to have portions of the Android SDK available in your local Maven repo in order to build Robolectric.
+Robolectric is built using Gradle. Both IntelliJ and Android Studio can import the top-level `build.gradle` file and will automatically generate their project files from it.
 
-Mavenize all required dependencies by running:
+You will need to have portions of the Android SDK available in your local Maven artifact repository in order to build Robolectric. Copy all required Android dependencies to your local Maven repo by running:
 
     ./scripts/install-dependencies.rb
 
-Because Robolectric's shadows are compiled against the Android APIs that they target, you must build the shadows for all API levels before being able to run any of the tests. You can build all of Robolectric by running:
+*Note*: You'll need Maven installed, `ANDROID_HOME` set and to have the SDK and Google APIs for API Level 23 downloaded to do this.
 
-    ./scripts/install-robolectric.sh
-    
-After doing this once, you can build and test against the specific API level you care about:
+Robolectric supports running tests against multiple Android API levels. The work it must do to support each API level is slightly different, so its shadows are built separately for each. To build shadows for every API version, run:
 
-    mvn install -P android-18 (for example)
+    ./gradlew clean assemble install compileTest
 
 ### Using Snapshots
 
 If you would like to live on the bleeding edge, you can try running against a snapshot build. Keep in mind that snapshots represent the most recent changes on master and may contain bugs.
 
-### Gradle
+#### build.gradle:
 
 ```groovy
 repositories {
@@ -79,22 +67,6 @@ repositories {
 }
 
 dependencies {
-    testCompile "org.robolectric:robolectric:3.1-SNAPSHOT"
+    testCompile "org.robolectric:robolectric:3.8-SNAPSHOT"
 }
-```
-
-### Maven
-
-```xml
-<repository>
-  <id>sonatype-snapshpots</id>
-  <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-</repository>
-
-<dependency>
-   <groupId>org.robolectric</groupId>
-   <artifactId>robolectric</artifactId>
-   <version>3.1-SNAPSHOT</version>
-   <scope>test</scope>
-</dependency>
 ```

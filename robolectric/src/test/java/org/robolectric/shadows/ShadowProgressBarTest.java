@@ -1,21 +1,20 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.robolectric.RuntimeEnvironment.application;
+
+import android.util.AttributeSet;
 import android.widget.ProgressBar;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
-import org.robolectric.res.Attribute;
-import org.robolectric.res.ResName;
-import org.robolectric.util.TestUtil;
+import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
 
-import static java.util.Arrays.asList;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.*;
-import static org.robolectric.RuntimeEnvironment.application;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowProgressBarTest {
 
   private int[] testValues = {0, 1, 2, 100};
@@ -23,11 +22,11 @@ public class ShadowProgressBarTest {
 
   @Before
   public void setUp() {
-    RoboAttributeSet attrs = new RoboAttributeSet(asList(
-        new Attribute(new ResName(TestUtil.SYSTEM_PACKAGE, "attr", "max"), "100", TestUtil.TEST_PACKAGE),
-        new Attribute(new ResName(TestUtil.SYSTEM_PACKAGE, "attr", "indeterminate"), "false", TestUtil.TEST_PACKAGE),
-        new Attribute(new ResName(TestUtil.SYSTEM_PACKAGE, "attr", "indeterminateOnly"), "false", TestUtil.TEST_PACKAGE)
-    ), shadowOf(application.getResources()).getResourceLoader());
+    AttributeSet attrs = Robolectric.buildAttributeSet()
+        .addAttribute(android.R.attr.max, "100")
+        .addAttribute(android.R.attr.indeterminate, "false")
+        .addAttribute(android.R.attr.indeterminateOnly, "false")
+        .build();
 
     progressBar = new ProgressBar(application, attrs);
   }

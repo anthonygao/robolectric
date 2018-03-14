@@ -1,23 +1,29 @@
 package org.robolectric.internal.dependency;
 
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
-
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.junit.runners.model.InitializationError;
 import org.robolectric.internal.dependency.CachedDependencyResolver.Cache;
 import org.robolectric.internal.dependency.CachedDependencyResolver.CacheNamingStrategy;
 import org.robolectric.internal.dependency.CachedDependencyResolver.CacheValidationStrategy;
-import org.robolectric.test.TemporaryFolder;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
-
+@RunWith(JUnit4.class)
 public class CachedDependencyResolverTest {
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private static final String CACHE_NAME = "someName";
@@ -41,7 +47,6 @@ public class CachedDependencyResolverTest {
   };
 
   private URL url;
-  private URL[] urls;
   private Cache cache = new CacheStub();
   private DependencyJar[] dependencies = new DependencyJar[]{
       createDependency("group1", "artifact1"),
@@ -51,45 +56,7 @@ public class CachedDependencyResolverTest {
 
   @Before
   public void setUp() throws InitializationError, MalformedURLException {
-    urls = new URL[] { new URL("http://localhost") };
     url = new URL("http://localhost");
-  }
-
-  @Test
-  public void getLocalArtifactUrls_shouldWriteLocalArtifactsUrlsWhenCacheMiss() throws Exception {
-    DependencyResolver res = createResolver();
-
-    when(internalResolver.getLocalArtifactUrls(dependencies)).thenReturn(urls);
-
-    URL[] urls = res.getLocalArtifactUrls(dependencies);
-
-    assertArrayEquals(this.urls, urls);
-    assertCacheContents(urls);
-  }
-
-  @Test
-  public void getLocalArtifactUrls_shouldReadLocalArtifactUrlsFromCacheIfExists() throws Exception {
-    DependencyResolver res = createResolver();
-    cache.write(CACHE_NAME, urls);
-
-    URL[] urls = res.getLocalArtifactUrls(dependencies);
-
-    verify(internalResolver, never()).getLocalArtifactUrls(dependencies);
-
-    assertArrayEquals(this.urls, urls);
-  }
-
-  @Test
-  public void getLocalArtifactUrls_whenCacheInvalid_shouldFetchDependencyInformation() {
-    CacheValidationStrategy failStrategy = mock(CacheValidationStrategy.class);
-    when(failStrategy.isValid(any(URL[].class))).thenReturn(false);
-
-    DependencyResolver res = new CachedDependencyResolver(internalResolver, cache, cacheNamingStrategy, failStrategy);
-    cache.write(CACHE_NAME, this.urls);
-
-    res.getLocalArtifactUrls(dependencies);
-
-    verify(internalResolver).getLocalArtifactUrls(dependencies);
   }
 
   @Test
@@ -129,10 +96,6 @@ public class CachedDependencyResolverTest {
     verify(internalResolver).getLocalArtifactUrl(dependency);
   }
 
-  private void assertCacheContents(URL[] urls) {
-    assertArrayEquals(urls, cache.load(CACHE_NAME, URL[].class));
-  }
-
   private void assertCacheContents(URL url) {
     assertEquals(url, cache.load(CACHE_NAME, URL.class));
   }
@@ -151,6 +114,11 @@ public class CachedDependencyResolverTest {
         DependencyJar d = (DependencyJar) o;
 
         return this.getArtifactId().equals(d.getArtifactId()) && this.getGroupId().equals(groupId);
+      }
+
+      @Override
+      public int hashCode() {
+        return 31 * getArtifactId().hashCode() + getGroupId().hashCode();
       }
     };
   }

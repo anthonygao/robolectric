@@ -1,22 +1,19 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.animation.ValueAnimator;
-
 import com.google.common.collect.Ordering;
-
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
 import org.robolectric.util.TimeUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowValueAnimatorTest {
 
   @Test
@@ -25,7 +22,7 @@ public class ShadowValueAnimatorTest {
 
     ShadowChoreographer.setFrameInterval(100 * TimeUtils.NANOS_PER_MS);
 
-    
+
     final ValueAnimator animator = ValueAnimator.ofInt(0, 10);
     animator.setDuration(1000);
     animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -49,26 +46,17 @@ public class ShadowValueAnimatorTest {
   }
 
   @Test
-// It would be nice if timeout worked properly; however internally JUnit sets
-// up a separate thread when timeout is used, which violates some assumptions
-// that the rest of Robolectric makes about the test thread being invariant.
-//  @Test(timeout = 1000)
   public void test_WhenInfiniteAnimationIsPlayed_AnimationIsOnlyPlayedOnce() throws InterruptedException {
     ShadowChoreographer.setFrameInterval(100 * TimeUtils.NANOS_PER_MS);
     final ValueAnimator animator = ValueAnimator.ofInt(0, 10);
     animator.setDuration(200);
     animator.setRepeatCount(ValueAnimator.INFINITE);
 
+    Robolectric.getForegroundThreadScheduler().pause();
     animator.start();
+    assertThat(animator.isRunning()).isTrue();
 
-    Thread flush = new Thread("test_WhenInfiniteAnimationIsPlayed_AnimationIsOnlyPlayedOnce") {
-      @Override
-      public void run() {
-        Robolectric.flushForegroundThreadScheduler();
-      }
-    };
-    flush.start();
-    flush.join(1000);
+    Robolectric.flushForegroundThreadScheduler();
     assertThat(animator.isRunning()).isFalse();
   }
 }

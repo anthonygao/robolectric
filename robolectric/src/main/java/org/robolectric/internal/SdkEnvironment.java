@@ -1,74 +1,46 @@
 package org.robolectric.internal;
 
-import org.robolectric.internal.bytecode.ShadowInvalidator;
+import javax.annotation.Nonnull;
+import org.robolectric.internal.bytecode.Sandbox;
 import org.robolectric.internal.dependency.DependencyResolver;
-import org.robolectric.internal.bytecode.ShadowMap;
-import org.robolectric.internal.bytecode.ShadowWrangler;
 import org.robolectric.res.Fs;
-import org.robolectric.res.PackageResourceLoader;
-import org.robolectric.res.ResourceExtractor;
-import org.robolectric.res.ResourceLoader;
+import org.robolectric.res.PackageResourceTable;
 import org.robolectric.res.ResourcePath;
+import org.robolectric.res.ResourceTableFactory;
 
-import java.util.HashMap;
-import java.util.Map;
-
-public class SdkEnvironment {
+public class SdkEnvironment extends Sandbox {
   private final SdkConfig sdkConfig;
-  private final ClassLoader robolectricClassLoader;
-  private final ShadowInvalidator shadowInvalidator;
-  public final Map<ShadowMap, ShadowWrangler> classHandlersByShadowMap = new HashMap<>();
-  private ShadowMap shadowMap = ShadowMap.EMPTY;
-  private ResourceLoader systemResourceLoader;
+  private PackageResourceTable systemResourceTable;
 
   public SdkEnvironment(SdkConfig sdkConfig, ClassLoader robolectricClassLoader) {
+    super(robolectricClassLoader);
     this.sdkConfig = sdkConfig;
-    this.robolectricClassLoader = robolectricClassLoader;
-    shadowInvalidator = new ShadowInvalidator();
   }
 
-  public PackageResourceLoader createSystemResourceLoader(DependencyResolver dependencyResolver) {
-    Fs systemResFs = Fs.fromJar(dependencyResolver.getLocalArtifactUrl(sdkConfig.getSystemResourceDependency()));
-    ResourceExtractor resourceExtractor;
+  public synchronized PackageResourceTable getSystemResourceTable(DependencyResolver dependencyResolver) {
+    if (systemResourceTable == null) {
+      ResourcePath resourcePath = createRuntimeSdkResourcePath(dependencyResolver);
+      systemResourceTable = new ResourceTableFactory().newFrameworkResourceTable(resourcePath);
+    }
+    return systemResourceTable;
+  }
+
+  @Nonnull
+  private ResourcePath createRuntimeSdkResourcePath(DependencyResolver dependencyResolver) {
     try {
-      resourceExtractor = new ResourceExtractor(getRobolectricClassLoader().loadClass("com.android.internal.R"), getRobolectricClassLoader().loadClass("android.R"));
+      Fs systemResFs = Fs.fromJar(dependencyResolver.getLocalArtifactUrl(sdkConfig.getAndroidSdkDependency()));
+      Class<?> androidRClass = getRobolectricClassLoader().loadClass("android.R");
+      Class<?> androidInternalRClass = getRobolectricClassLoader().loadClass("com.android.internal.R");
+      return new ResourcePath(androidRClass,
+          systemResFs.join("raw-res/res"),
+          systemResFs.join("raw-res/assets"),
+          androidInternalRClass);
     } catch (ClassNotFoundException e) {
       throw new RuntimeException(e);
     }
-    ResourcePath resourcePath = new ResourcePath(resourceExtractor.getProcessedRFile(), resourceExtractor.getPackageName(), systemResFs.join("res"), systemResFs.join("assets"));
-    return new PackageResourceLoader(resourcePath, resourceExtractor);
-  }
-
-  public synchronized ResourceLoader getSystemResourceLoader(DependencyResolver dependencyResolver) {
-    if (systemResourceLoader == null) {
-      systemResourceLoader = createSystemResourceLoader(dependencyResolver);
-    }
-    return systemResourceLoader;
-  }
-
-  public Class<?> bootstrappedClass(Class<?> testClass) {
-    try {
-      return robolectricClassLoader.loadClass(testClass.getName());
-    } catch (ClassNotFoundException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  public ClassLoader getRobolectricClassLoader() {
-    return robolectricClassLoader;
-  }
-
-  public ShadowInvalidator getShadowInvalidator() {
-    return shadowInvalidator;
   }
 
   public SdkConfig getSdkConfig() {
     return sdkConfig;
-  }
-
-  public ShadowMap replaceShadowMap(ShadowMap shadowMap) {
-    ShadowMap oldMap = this.shadowMap;
-    this.shadowMap = shadowMap;
-    return oldMap;
   }
 }

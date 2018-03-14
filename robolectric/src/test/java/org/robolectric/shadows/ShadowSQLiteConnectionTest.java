@@ -1,34 +1,32 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
+import static org.robolectric.shadows.ShadowSQLiteConnection.convertSQLWithLocalizedUnicodeCollator;
+
+import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteDatatypeMismatchException;
 import android.database.sqlite.SQLiteStatement;
-import android.os.Build;
-
-import org.assertj.core.api.Assertions;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.annotation.Config;
-import org.robolectric.util.ReflectionHelpers;
-
 import com.almworks.sqlite4java.SQLiteConnection;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
+import org.robolectric.util.ReflectionHelpers;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.shadows.ShadowSQLiteConnection.convertSQLWithLocalizedUnicodeCollator;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
-@Config(sdk = {
-    Build.VERSION_CODES.LOLLIPOP })
+@RunWith(RobolectricTestRunner.class)
+@Config(minSdk = LOLLIPOP)
 public class ShadowSQLiteConnectionTest {
   private SQLiteDatabase database;
   private File databasePath;
@@ -38,16 +36,11 @@ public class ShadowSQLiteConnectionTest {
   
   @Before
   public void setUp() throws Exception {
-    databasePath = RuntimeEnvironment.application.getDatabasePath("database.db");
-    databasePath.getParentFile().mkdirs();
-
-    database = SQLiteDatabase.openOrCreateDatabase(databasePath.getPath(), null);
+    database = createDatabase("database.db");
     SQLiteStatement createStatement = database.compileStatement(
         "CREATE TABLE `routine` (`id` INTEGER PRIMARY KEY AUTOINCREMENT , `name` VARCHAR , `lastUsed` INTEGER DEFAULT 0 ,  UNIQUE (`name`)) ;");
     createStatement.execute();
-    ptr = ShadowSQLiteConnection.nativeOpen(databasePath.getPath(), 0, "test connection", false, false);
-    CONNECTIONS = ReflectionHelpers.getStaticField(ShadowSQLiteConnection.class, "CONNECTIONS");
-    conn = CONNECTIONS.getConnection(ptr);
+    conn = getSQLiteConnection(database);
   }
 
   @After
@@ -134,5 +127,51 @@ public class ShadowSQLiteConnectionTest {
     ShadowSQLiteConnection.reset();
 
     assertThat(statementsMap).as("statements after").isEmpty();
+  }
+
+  @Test
+  public void error_resultsInSpecificExceptionWithCause() {
+    try {
+      database.execSQL("insert into routine(name) values ('Hand press 1')");
+      ContentValues values = new ContentValues(1);
+      values.put("rowid", "foo");
+      database.update("routine", values, "name='Hand press 1'", null);
+      fail();
+    } catch (SQLiteDatatypeMismatchException expected) {
+      assertThat(expected).hasRootCauseInstanceOf(com.almworks.sqlite4java.SQLiteException.class);
+    }
+  }
+
+  @Test
+  public void interruption_doesNotConcurrentlyModifyDatabase() throws Exception {
+    Thread.currentThread().interrupt();
+    try {
+      database.execSQL("insert into routine(name) values ('الصحافة اليدوية')");
+    } finally {
+      Thread.interrupted();
+    }
+    ShadowSQLiteConnection.reset();
+  }
+
+  @Test
+  public void test_setUseInMemoryDatabase() throws Exception {
+    assertThat(conn.isMemoryDatabase()).isFalse();
+    ShadowSQLiteConnection.setUseInMemoryDatabase(true);
+    SQLiteDatabase inMemoryDb = createDatabase("in_memory.db");
+    SQLiteConnection inMemoryConn = getSQLiteConnection(inMemoryDb);
+    assertThat(inMemoryConn.isMemoryDatabase()).isTrue();
+    inMemoryDb.close();
+  }
+
+  private SQLiteDatabase createDatabase(String filename) {
+    databasePath = RuntimeEnvironment.application.getDatabasePath(filename);
+    databasePath.getParentFile().mkdirs();
+    return SQLiteDatabase.openOrCreateDatabase(databasePath.getPath(), null);
+  }
+
+  private SQLiteConnection getSQLiteConnection(SQLiteDatabase database) {
+    ptr = ShadowSQLiteConnection.nativeOpen(databasePath.getPath(), 0, "test connection", false, false).longValue();
+    CONNECTIONS = ReflectionHelpers.getStaticField(ShadowSQLiteConnection.class, "CONNECTIONS");
+    return CONNECTIONS.getConnection(ptr);
   }
 }

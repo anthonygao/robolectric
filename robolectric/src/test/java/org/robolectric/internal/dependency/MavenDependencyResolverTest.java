@@ -1,20 +1,27 @@
 package org.robolectric.internal.dependency;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
+
+import java.net.URL;
+import java.util.List;
 import org.apache.maven.artifact.ant.DependenciesTask;
 import org.apache.maven.artifact.ant.RemoteRepository;
 import org.apache.maven.model.Dependency;
 import org.apache.tools.ant.Project;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
-import java.net.URL;
-import java.util.List;
-
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-
+@RunWith(JUnit4.class)
 public class MavenDependencyResolverTest {
 
   private static final String REPOSITORY_URL = "https://default-repo";
@@ -104,39 +111,6 @@ public class MavenDependencyResolverTest {
     URL url = dependencyResolver.getLocalArtifactUrl(dependencyJar);
 
     assertEquals("file:/path3", url.toExternalForm());
-  }
-
-  @Test
-  public void getLocalArtifactUrls_shouldReturnEmptyArrayIfNoDependencyJarProvided() {
-    DependencyResolver dependencyResolver = createResolver();
-
-    URL[] urls = dependencyResolver.getLocalArtifactUrls();
-
-    assertEquals(0, urls.length);
-  }
-
-  @Test
-  public void getLocalArtifactUrls_shouldReturnURLsForEachDependencyJar() {
-    DependencyResolver dependencyResolver = createResolver();
-    DependencyJar dependencyJar1 = new DependencyJar("group1", "artifact1", "", null);
-    DependencyJar dependencyJar2 = new DependencyJar("group2", "artifact2", "", null);
-
-    URL[] urls = dependencyResolver.getLocalArtifactUrls(dependencyJar1, dependencyJar2);
-
-    assertEquals(2, urls.length);
-    assertEquals("file:/path1", urls[0].toExternalForm());
-    assertEquals("file:/path2", urls[1].toExternalForm());
-  }
-
-  @Test
-  public void getLocalArtifactUrls_shouldAddEachDependencyToDependenciesTask() {
-    DependencyResolver dependencyResolver = createResolver();
-    DependencyJar dependencyJar1 = new DependencyJar("group1", "artifact1", "", null);
-    DependencyJar dependencyJar2 = new DependencyJar("group2", "artifact2", "", null);
-
-    dependencyResolver.getLocalArtifactUrls(dependencyJar1, dependencyJar2);
-
-    verify(dependenciesTask, times(2)).addDependency(any(Dependency.class));
   }
 
   private DependencyResolver createResolver() {

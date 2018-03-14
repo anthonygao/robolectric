@@ -3,24 +3,23 @@ package org.robolectric.shadows;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import android.accounts.Account;
+import android.os.Bundle;
+import android.os.Parcel;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import android.accounts.Account;
-import android.os.Bundle;
-import android.os.Parcel;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowParcelTest {
 
   private Parcel parcel;
@@ -47,7 +46,7 @@ public class ShadowParcelTest {
 
   @Test
   public void testReadLongWhenEmpty() {
-    assertThat(parcel.readLong()).isEqualTo(0l);
+    assertThat(parcel.readLong()).isEqualTo(0L);
   }
 
   @Test
@@ -222,6 +221,25 @@ public class ShadowParcelTest {
   }
 
   @Test
+  public void testWriteAndReadByteArray() {
+    byte[] bytes = new byte[] { -1, 2, 3, 127 };
+    parcel.writeByteArray(bytes);
+    parcel.setDataPosition(0);
+    byte[] actualBytes = new byte[bytes.length];
+    parcel.readByteArray(actualBytes);
+    assertTrue(Arrays.equals(bytes, actualBytes));
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testWriteAndReadByteArray_badLength() {
+    byte[] bytes = new byte[] { -1, 2, 3, 127 };
+    parcel.writeByteArray(bytes);
+    parcel.setDataPosition(0);
+    byte[] actualBytes = new byte[0];
+    parcel.readByteArray(actualBytes);
+  }
+
+  @Test
   public void testReadWriteMultipleInts() {
     for (int i = 0; i < 10; ++i) {
       parcel.writeInt(i);
@@ -305,7 +323,7 @@ public class ShadowParcelTest {
       assertThat(parcel.readLong()).isEqualTo(i);
     }
     // now try to read past the number of items written and see what happens
-    assertThat(parcel.readLong()).isEqualTo(0l);
+    assertThat(parcel.readLong()).isEqualTo(0L);
   }
 
   @Test
@@ -321,7 +339,7 @@ public class ShadowParcelTest {
     }
     // now try to read past the number of items written and see what happens
     assertThat(parcel.readString()).isNull();
-    assertThat(parcel.readLong()).isEqualTo(0l);
+    assertThat(parcel.readLong()).isEqualTo(0L);
   }
 
   @Test(expected = ClassCastException.class)
@@ -386,7 +404,7 @@ public class ShadowParcelTest {
 
     parcel.writeTypedList(normals);
     parcel.setDataPosition(0);
-    ArrayList<TestParcelable> rehydrated = parcel
+    List<org.robolectric.shadows.TestParcelable> rehydrated = parcel
         .createTypedArrayList(TestParcelable.CREATOR);
 
     assertEquals(1, rehydrated.size());
@@ -394,9 +412,45 @@ public class ShadowParcelTest {
   }
 
   @Test
+  public void testParcelableWithPackageProtected() throws Exception {
+    TestParcelablePackage normal = new TestParcelablePackage(23);
+
+    parcel.writeParcelable(normal, 0);
+    parcel.setDataPosition(0);
+
+    TestParcelablePackage rehydrated = parcel.readParcelable(TestParcelablePackage.class.getClassLoader());
+
+    assertEquals(normal.contents, rehydrated.contents);
+  }
+
+  @Test
+  public void testParcelableWithBase() throws Exception {
+    TestParcelableImpl normal = new TestParcelableImpl(23);
+
+    parcel.writeParcelable(normal, 0);
+    parcel.setDataPosition(0);
+
+    TestParcelableImpl rehydrated = parcel.readParcelable(TestParcelableImpl.class.getClassLoader());
+
+    assertEquals(normal.contents, rehydrated.contents);
+  }
+
+  @Test
+  public void testParcelableWithPublicClass() throws Exception {
+    TestParcelable normal = new TestParcelable(23);
+
+    parcel.writeParcelable(normal, 0);
+    parcel.setDataPosition(0);
+
+    TestParcelable rehydrated = parcel.readParcelable(TestParcelable.class.getClassLoader());
+
+    assertEquals(normal.contents, rehydrated.contents);
+  }
+
+  @Test
   public void testReadAndWriteStringList() throws Exception {
     ArrayList<String> original = new ArrayList<>();
-    ArrayList<String> rehydrated = new ArrayList<>();
+    List<String> rehydrated = new ArrayList<>();
     original.add("str1");
     original.add("str2");
     parcel.writeStringList(original);
@@ -543,5 +597,25 @@ public class ShadowParcelTest {
   public void testSetDataCapacity() {
     parcel.setDataCapacity(8);
     assertThat(parcel.dataCapacity()).isEqualTo(8);
+  }
+  
+  @Test
+  public void testWriteAndEnforceCompatibleInterface() {
+    parcel.writeInterfaceToken("com.example.IMyInterface");
+    parcel.setDataPosition(0);
+    parcel.enforceInterface("com.example.IMyInterface");
+    // Nothing explodes
+  }
+  
+  @Test
+  public void testWriteAndEnforceIncompatibleInterface() {
+    parcel.writeInterfaceToken("com.example.Derp");
+    parcel.setDataPosition(0);
+    try {
+      parcel.enforceInterface("com.example.IMyInterface");
+      fail("Expected SecurityException");
+    } catch (SecurityException e) {
+      // Expected
+    }
   }
 }

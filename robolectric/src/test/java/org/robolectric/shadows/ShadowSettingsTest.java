@@ -1,26 +1,25 @@
 package org.robolectric.shadows;
 
-import android.app.Activity;
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.content.ContentResolver;
-import android.os.Build;
 import android.provider.Settings;
+import android.text.format.DateFormat;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowSettingsTest {
-  private Activity activity;
   private ContentResolver contentResolver;
 
   @Before
   public void setUp() throws Exception {
-    activity = new Activity();
-    contentResolver = activity.getContentResolver();
+    contentResolver = RuntimeEnvironment.application.getContentResolver();
   }
 
   @Test
@@ -42,7 +41,7 @@ public class ShadowSettingsTest {
   }
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.JELLY_BEAN_MR1)
+  @Config(minSdk = JELLY_BEAN_MR1)
   public void testGlobalGetInt() throws Exception {
     assertThat(Settings.Global.getInt(contentResolver, "property", 0)).isEqualTo(0);
     assertThat(Settings.Global.getInt(contentResolver, "property", 2)).isEqualTo(2);
@@ -87,5 +86,17 @@ public class ShadowSettingsTest {
   @Test(expected = Settings.SettingNotFoundException.class)
   public void testSystemGetFloat_exception() throws Exception {
     Settings.System.getFloat(contentResolver, "property");
+  }
+
+  @Test
+  public void testSet24HourMode_24() {
+    ShadowSettings.set24HourTimeFormat(true);
+    assertThat(DateFormat.is24HourFormat(RuntimeEnvironment.application.getBaseContext())).isTrue();
+  }
+
+  @Test
+  public void testSet24HourMode_12() {
+    ShadowSettings.set24HourTimeFormat(false);
+    assertThat(DateFormat.is24HourFormat(RuntimeEnvironment.application.getBaseContext())).isFalse();
   }
 }

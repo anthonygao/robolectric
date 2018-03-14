@@ -1,8 +1,12 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.LOLLIPOP_MR1;
+import static android.os.Build.VERSION_CODES.M;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.R;
 import android.app.Activity;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
@@ -12,15 +16,12 @@ import android.widget.ProgressBar;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.util.ActivityController;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.WithDefaults.class)
-@Config(sdk = Build.VERSION_CODES.M)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowWindowTest {
   @Test
   public void getFlag_shouldReturnWindowFlags() throws Exception {
@@ -92,6 +93,18 @@ public class ShadowWindowTest {
     assertThat(indeterminate.getVisibility()).isEqualTo(View.VISIBLE);
     activity.setProgressBarIndeterminateVisibility(false);
     assertThat(indeterminate.getVisibility()).isEqualTo(View.GONE);
+  }
+
+  @Test @Config(maxSdk = LOLLIPOP_MR1)
+  public void forPreM_create_shouldCreateImplPhoneWindow() throws Exception {
+    assertThat(ShadowWindow.create(RuntimeEnvironment.application).getClass().getName())
+        .isEqualTo("com.android.internal.policy.impl.PhoneWindow");
+  }
+
+  @Test @Config(minSdk = M)
+  public void forM_create_shouldCreatePhoneWindow() throws Exception {
+    assertThat(ShadowWindow.create(RuntimeEnvironment.application).getClass().getName())
+        .isEqualTo("com.android.internal.policy.PhoneWindow");
   }
 
   public static class TestActivity extends Activity {

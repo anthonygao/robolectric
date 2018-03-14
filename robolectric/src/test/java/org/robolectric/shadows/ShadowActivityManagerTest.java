@@ -1,17 +1,23 @@
 package org.robolectric.shadows;
 
-import android.app.ActivityManager;
-import android.content.ComponentName;
-import android.content.Context;
-import com.google.android.collect.Lists;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
+import static android.os.Build.VERSION_CODES.KITKAT;
+import static android.os.Build.VERSION_CODES.M;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.app.ActivityManager;
+import android.content.ComponentName;
+import android.content.Context;
+import android.os.Process;
+import com.google.android.collect.Lists;
+import com.google.common.collect.ImmutableList;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
+
+@RunWith(RobolectricTestRunner.class)
 public class ShadowActivityManagerTest {
 
   @Test
@@ -57,7 +63,11 @@ public class ShadowActivityManagerTest {
     final ActivityManager.RunningAppProcessInfo process1 = buildProcessInfo(new ComponentName("org.robolectric", "Process 1"));
     final ActivityManager.RunningAppProcessInfo process2 = buildProcessInfo(new ComponentName("org.robolectric", "Process 2"));
 
-    assertThat(activityManager.getRunningAppProcesses()).isEmpty();
+    assertThat(activityManager.getRunningAppProcesses().size()).isEqualTo(1);
+    ActivityManager.RunningAppProcessInfo myInfo = activityManager.getRunningAppProcesses().get(0);
+    assertThat(myInfo.pid).isEqualTo(android.os.Process.myPid());
+    assertThat(myInfo.uid).isEqualTo(android.os.Process.myUid());
+    assertThat(myInfo.processName).isEqualTo(RuntimeEnvironment.application.getBaseContext().getPackageName());
     shadowOf(activityManager).setProcesses(Lists.newArrayList(process1, process2));
     assertThat(activityManager.getRunningAppProcesses()).containsExactly(process1, process2);
   }
@@ -102,8 +112,41 @@ public class ShadowActivityManagerTest {
     assertThat(ActivityManager.isUserAMonkey()).isFalse();
   }
 
+  @Test @Config(minSdk = KITKAT)
+  public void setIsLowRamDevice() {
+    final ActivityManager activityManager = getActivityManager();
+    shadowOf(activityManager).setIsLowRamDevice(true);
+    assertThat(activityManager.isLowRamDevice()).isTrue();
+  }
+
+  @Test @Config(minSdk = M)
+  public void getLockTaskModeState() throws Exception {
+    assertThat(getActivityManager().getLockTaskModeState()).isEqualTo(0); // just don't throw
+  }
+
+  @Test
+  public void getMyMemoryState() throws Exception {
+    ActivityManager.RunningAppProcessInfo inState = new ActivityManager.RunningAppProcessInfo();
+    ActivityManager.getMyMemoryState(inState);
+    assertThat(inState.uid).isEqualTo(Process.myUid());
+    assertThat(inState.pid).isEqualTo(Process.myPid());
+    assertThat(inState.importanceReasonCode).isEqualTo(0);
+    ActivityManager.RunningAppProcessInfo setState = new ActivityManager.RunningAppProcessInfo();
+    setState.uid = Process.myUid();
+    setState.pid = Process.myPid();
+    setState.importanceReasonCode = ActivityManager.RunningAppProcessInfo.REASON_PROVIDER_IN_USE;
+    shadowOf(getActivityManager()).setProcesses(ImmutableList.of(setState));
+    inState = new ActivityManager.RunningAppProcessInfo();
+    ActivityManager.getMyMemoryState(inState);
+    assertThat(inState.importanceReasonCode)
+        .isEqualTo(ActivityManager.RunningAppProcessInfo.REASON_PROVIDER_IN_USE);
+  }
+
+  ///////////////////////
+
   private ActivityManager getActivityManager() {
-    return (ActivityManager) RuntimeEnvironment.application.getSystemService(Context.ACTIVITY_SERVICE);
+    return (ActivityManager) RuntimeEnvironment.application.getSystemService(
+        Context.ACTIVITY_SERVICE);
   }
 
   private ActivityManager.RunningTaskInfo buildTaskInfo(ComponentName name) {

@@ -1,26 +1,24 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.M;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.icu.text.DateFormat;
 import android.icu.text.SimpleDateFormat;
 import android.icu.util.TimeZone;
 import android.icu.util.ULocale;
-import android.os.Build;
 import android.text.format.DateUtils;
-import libcore.icu.DateIntervalFormat;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
-import org.robolectric.annotation.Config;
-
 import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Date;
+import libcore.icu.DateIntervalFormat;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
-@Config(sdk = {
-    Build.VERSION_CODES.M })
+@RunWith(RobolectricTestRunner.class)
+@Config(minSdk = M)
 public class ShadowDateIntervalFormatTest {
   @Test
   public void testDateInterval_FormatDateRange() throws ParseException {

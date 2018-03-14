@@ -1,25 +1,25 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
+import static org.robolectric.Shadows.shadowOf;
 
-import android.R.anim;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.Parcel;
+import android.view.View;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.view.accessibility.AccessibilityWindowInfo;
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
-
+import android.view.accessibility.AccessibilityWindowInfo;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
-import org.robolectric.internal.ShadowExtractor;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowAccessibilityNodeInfoTest {
 
   private AccessibilityNodeInfo node;
@@ -46,12 +46,13 @@ public class ShadowAccessibilityNodeInfoTest {
   }
 
   @Test
-  public void ShouldHaveClonedCorrectly() {
+  public void shouldHaveClonedCorrectly() {
     node.setAccessibilityFocused(true);
     node.setBoundsInParent(new Rect(0, 0, 100, 100));
     node.setContentDescription("test");
     AccessibilityNodeInfo anotherNode = AccessibilityNodeInfo.obtain(node);
-    assertEquals(node, anotherNode);
+    assertThat(anotherNode).isEqualTo(node);
+    assertThat(anotherNode.getContentDescription().toString()).isEqualTo("test");
   }
 
   @Test
@@ -68,45 +69,37 @@ public class ShadowAccessibilityNodeInfoTest {
   @Test
   public void shouldNotHaveInfiniteLoopWithSameLoopedChildren() {
     node = AccessibilityNodeInfo.obtain();
-    shadow = (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(node);
     AccessibilityNodeInfo child = AccessibilityNodeInfo.obtain();
-    shadow.addChild(child);
-    ShadowAccessibilityNodeInfo childShadow =
-        (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(child);
-    childShadow.addChild(node);
-    AccessibilityNodeInfo anotherNode = ShadowAccessibilityNodeInfo.obtain(node);
-    assertThat(node.equals(anotherNode)).isEqualTo(true);
+    shadowOf(node).addChild(child);
+    shadowOf(child).addChild(node);
+    AccessibilityNodeInfo anotherNode = AccessibilityNodeInfo.obtain(node);
+    assertThat(node).isEqualTo(anotherNode);
   }
 
   @Test
   public void shouldNotHaveInfiniteLoopWithDifferentLoopedChildren() {
     node = AccessibilityNodeInfo.obtain();
-    shadow = (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(node);
+    shadow = shadowOf(node);
     AccessibilityNodeInfo child1 = AccessibilityNodeInfo.obtain();
     shadow.addChild(child1);
-    ShadowAccessibilityNodeInfo child1Shadow =
-        (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(child1);
+    ShadowAccessibilityNodeInfo child1Shadow = shadowOf(child1);
     child1Shadow.addChild(node);
-    AccessibilityNodeInfo anotherNode = ShadowAccessibilityNodeInfo.obtain(node);
+    AccessibilityNodeInfo anotherNode = ShadowAccessibilityNodeInfo.obtain();
     AccessibilityNodeInfo child2 = ShadowAccessibilityNodeInfo.obtain();
     child2.setText("test");
-    ShadowAccessibilityNodeInfo child2Shadow =
-        (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(child2);
-    ShadowAccessibilityNodeInfo anotherNodeShadow =
-        (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(anotherNode);
+    ShadowAccessibilityNodeInfo child2Shadow = shadowOf(child2);
+    ShadowAccessibilityNodeInfo anotherNodeShadow = shadowOf(anotherNode);
     anotherNodeShadow.addChild(child2);
     child2Shadow.addChild(anotherNode);
-    assertThat(node.equals(anotherNode)).isEqualTo(false);
+    assertThat(node).isNotEqualTo(anotherNode);
   }
 
   @Test
-  @Config(sdk = {
-      android.os.Build.VERSION_CODES.LOLLIPOP,
-      android.os.Build.VERSION_CODES.LOLLIPOP_MR1})
+  @Config(minSdk = LOLLIPOP)
   public void shouldRecordFlagsProperly() {
     node = AccessibilityNodeInfo.obtain();
     node.setClickable(false);
-    shadow = (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(node);
+    shadow = shadowOf(node);
     shadow.setPasteable(false);
     assertThat(shadow.isClickable()).isEqualTo(false);
     assertThat(shadow.isPasteable()).isEqualTo(false);
@@ -141,7 +134,7 @@ public class ShadowAccessibilityNodeInfoTest {
   public void shouldRecordActionsPerformed() {
     node.setClickable(true);
     node.addAction(AccessibilityNodeInfo.ACTION_CLICK);
-    shadow = (ShadowAccessibilityNodeInfo) ShadowExtractor.extract(node);
+    shadow = shadowOf(node);
     shadow.setOnPerformActionListener(new ShadowAccessibilityNodeInfo.OnPerformActionListener() {
       @Override
       public boolean onPerformAccessibilityAction(int action, Bundle arguments) {
@@ -162,6 +155,48 @@ public class ShadowAccessibilityNodeInfoTest {
     assertThat(shadow.getPerformedActions().size()).isEqualTo(2);
     assertThat(shadow.getPerformedActions().get(1))
         .isEqualTo(AccessibilityNodeInfo.ACTION_LONG_CLICK);
+  }
+
+  @Test
+  public void equalsTest_unrelatedNodesAreUnequal() {
+    AccessibilityNodeInfo nodeA = AccessibilityNodeInfo.obtain();
+    AccessibilityNodeInfo nodeB = AccessibilityNodeInfo.obtain();
+    shadowOf(nodeA).setText("test");
+    shadowOf(nodeB).setText("test");
+
+    assertThat(nodeA).isNotEqualTo(nodeB);
+  }
+
+  @Test
+  public void equalsTest_nodesFromTheSameViewAreEqual() {
+    View view = new View(RuntimeEnvironment.application);
+    AccessibilityNodeInfo nodeA = AccessibilityNodeInfo.obtain(view);
+    AccessibilityNodeInfo nodeB = AccessibilityNodeInfo.obtain(view);
+    shadowOf(nodeA).setText("tomato");
+    shadowOf(nodeB).setText("tomatoe");
+
+    assertThat(nodeA).isEqualTo(nodeB);
+  }
+
+  @Test
+  public void equalsTest_nodesFromDifferentViewsAreNotEqual() {
+    View viewA = new View(RuntimeEnvironment.application);
+    View viewB = new View(RuntimeEnvironment.application);
+    AccessibilityNodeInfo nodeA = AccessibilityNodeInfo.obtain(viewA);
+    AccessibilityNodeInfo nodeB = AccessibilityNodeInfo.obtain(viewB);
+    shadowOf(nodeA).setText("test");
+    shadowOf(nodeB).setText("test");
+
+    assertThat(nodeA).isNotEqualTo(nodeB);
+  }
+
+  @Test
+  public void equalsTest_nodeIsEqualToItsClone_evenWhenModified() {
+    node = AccessibilityNodeInfo.obtain();
+    AccessibilityNodeInfo clone = AccessibilityNodeInfo.obtain(node);
+    shadowOf(clone).setText("test");
+
+    assertThat(node).isEqualTo(clone);
   }
 
   @After

@@ -1,34 +1,34 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.KITKAT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
-import junit.framework.Assert;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
 import org.robolectric.annotation.Config;
-import org.robolectric.util.Transcript;
 
-import static junit.framework.Assert.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertSame;
-import static org.robolectric.Shadows.shadowOf;
-import static org.robolectric.util.TestUtil.assertInstanceOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowDialogTest {
   @Test
   public void shouldCallOnDismissListener() throws Exception {
-    final Transcript transcript = new Transcript();
+    final List<String> transcript = new ArrayList<>();
 
     final Dialog dialog = new Dialog(RuntimeEnvironment.application);
     dialog.show();
@@ -42,7 +42,7 @@ public class ShadowDialogTest {
 
     dialog.dismiss();
 
-    transcript.assertEventsSoFar("onDismiss called!");
+    assertThat(transcript).containsExactly("onDismiss called!");
   }
 
   @Test
@@ -97,7 +97,7 @@ public class ShadowDialogTest {
 
   @Test
   public void shouldOnlyCallOnCreateOnce() {
-    final Transcript transcript = new Transcript();
+    final List<String> transcript = new ArrayList<>();
 
     Dialog dialog = new Dialog(RuntimeEnvironment.application) {
       @Override
@@ -108,11 +108,12 @@ public class ShadowDialogTest {
     };
 
     dialog.show();
-    transcript.assertEventsSoFar("onCreate called");
+    assertThat(transcript).containsExactly("onCreate called");
+    transcript.clear();
 
     dialog.dismiss();
     dialog.show();
-    transcript.assertNoEventsSoFar();
+    assertThat(transcript).isEmpty();
   }
 
   @Test
@@ -171,11 +172,11 @@ public class ShadowDialogTest {
   public void shouldFindViewsWithinAContentViewThatWasPreviouslySet() throws Exception {
     Dialog dialog = new Dialog(RuntimeEnvironment.application);
     dialog.setContentView(dialog.getLayoutInflater().inflate(R.layout.main, null));
-    assertInstanceOf(TextView.class, dialog.findViewById(R.id.title));
+    assertThat(dialog.<TextView>findViewById(R.id.title)).isInstanceOf((Class<? extends TextView>) TextView.class);
   }
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.KITKAT)
+  @Config(minSdk = KITKAT)
   public void show_shouldWorkWithAPI19() {
     Dialog dialog = new Dialog(RuntimeEnvironment.application);
     dialog.show();

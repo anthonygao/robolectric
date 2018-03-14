@@ -1,5 +1,23 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.JELLY_BEAN;
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
+import static android.os.Build.VERSION_CODES.M;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.robolectric.Robolectric.buildActivity;
+import static org.robolectric.Robolectric.setupActivity;
+import static org.robolectric.RuntimeEnvironment.application;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.ActivityOptions;
@@ -17,7 +35,6 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteCursor;
 import android.media.AudioManager;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -31,64 +48,41 @@ import android.view.Window;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.SearchView;
-
-import org.junit.Rule;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
 import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
+import org.robolectric.android.controller.ActivityController;
 import org.robolectric.annotation.Config;
-import org.robolectric.internal.Shadow;
-import org.robolectric.manifest.AndroidManifest;
-import org.robolectric.res.Fs;
-import org.robolectric.test.TemporaryFolder;
-import org.robolectric.util.ActivityController;
+import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.TestRunnable;
-import org.robolectric.util.Transcript;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.robolectric.Robolectric.buildActivity;
-import static org.robolectric.Robolectric.setupActivity;
-import static org.robolectric.RuntimeEnvironment.application;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.WithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowActivityTest {
-  @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
   private Activity activity;
 
   @Test
   public void shouldUseApplicationLabelFromManifestAsTitleForActivity() throws Exception {
-    activity = create(LabelTestActivity1.class);
+    activity = Robolectric.setupActivity(LabelTestActivity1.class);
     assertThat(activity.getTitle()).isNotNull();
     assertThat(activity.getTitle().toString()).isEqualTo(activity.getString(R.string.app_name));
   }
 
   @Test
   public void shouldUseActivityLabelFromManifestAsTitleForActivity() throws Exception {
-    activity = create(LabelTestActivity2.class);
+    activity = Robolectric.setupActivity(LabelTestActivity2.class);
     assertThat(activity.getTitle()).isNotNull();
     assertThat(activity.getTitle().toString()).isEqualTo(activity.getString(R.string.activity_name));
   }
 
   @Test
   public void shouldUseActivityLabelFromManifestAsTitleForActivityWithShortName() throws Exception {
-    activity = create(LabelTestActivity3.class);
+    activity = Robolectric.setupActivity(LabelTestActivity3.class);
     assertThat(activity.getTitle()).isNotNull();
     assertThat(activity.getTitle().toString()).isEqualTo(activity.getString(R.string.activity_name));
   }
@@ -99,47 +93,66 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldNotComplainIfActivityIsDestroyedWhileAnotherActivityHasRegisteredBroadcastReceivers() throws Exception {
-    activity = create(DialogLifeCycleActivity.class);
+    ActivityController<DialogCreatingActivity> controller = Robolectric.buildActivity(DialogCreatingActivity.class);
+    activity = controller.get();
 
-    DialogLifeCycleActivity activity2 = new DialogLifeCycleActivity();
+    DialogLifeCycleActivity activity2 = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     activity2.registerReceiver(new AppWidgetProvider(), new IntentFilter());
 
-    destroy(activity); // should not throw exception
+    controller.destroy();
   }
 
   @Test
   public void shouldNotRegisterNullBroadcastReceiver() {
-    activity = create(DialogLifeCycleActivity.class);
+    ActivityController<DialogCreatingActivity> controller = Robolectric.buildActivity(DialogCreatingActivity.class);
+    activity = controller.get();
     activity.registerReceiver(null, new IntentFilter());
 
-    destroy(activity);
+    controller.destroy();
   }
 
   @Test
+  @Config(minSdk = JELLY_BEAN_MR1)
   public void shouldReportDestroyedStatus() {
-    activity = create(DialogLifeCycleActivity.class);
-    destroy(activity);
+    ActivityController<DialogCreatingActivity> controller = Robolectric.buildActivity(DialogCreatingActivity.class);
+    activity = controller.get();
+
+    controller.destroy();
     assertThat(activity.isDestroyed()).isTrue();
   }
 
   @Test
   public void startActivity_shouldDelegateToStartActivityForResult() {
-    final Transcript transcript = new Transcript();
-    Activity activity = new Activity() {
-      @Override protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        transcript.add("onActivityResult called with requestCode " + requestCode + ", resultCode " + resultCode + ", intent data " + data.getData());
-      }
-    };
+
+    TranscriptActivity activity = Robolectric.setupActivity(TranscriptActivity.class);
+
     activity.startActivity(new Intent().setType("image/*"));
 
     shadowOf(activity).receiveResult(new Intent().setType("image/*"), Activity.RESULT_OK,
         new Intent().setData(Uri.parse("content:foo")));
-    transcript.assertEventsSoFar("onActivityResult called with requestCode -1, resultCode -1, intent data content:foo");
+    assertThat(activity.transcript)
+        .containsExactly(
+            "onActivityResult called with requestCode -1, resultCode -1, intent data content:foo");
+  }
+
+  public static class TranscriptActivity extends Activity {
+    final List<String> transcript = new ArrayList<>();
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+      transcript.add(
+          "onActivityResult called with requestCode "
+              + requestCode
+              + ", resultCode "
+              + resultCode
+              + ", intent data "
+              + data.getData());
+    }
   }
 
   @Test
   public void startActivities_shouldStartAllActivities() {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
 
     final Intent view = new Intent(Intent.ACTION_VIEW);
     final Intent pick = new Intent(Intent.ACTION_PICK);
@@ -151,7 +164,7 @@ public class ShadowActivityTest {
 
   @Test
   public void startActivities_withBundle_shouldStartAllActivities() {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
 
     final Intent view = new Intent(Intent.ACTION_VIEW);
     final Intent pick = new Intent(Intent.ACTION_PICK);
@@ -163,29 +176,20 @@ public class ShadowActivityTest {
 
   @Test
   public void startActivityForResultAndReceiveResult_shouldSendResponsesBackToActivity() throws Exception {
-    final Transcript transcript = new Transcript();
-    Activity activity = new Activity() {
-      @Override
-      protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        transcript.add("onActivityResult called with requestCode " + requestCode + ", resultCode " + resultCode + ", intent data " + data.getData());
-      }
-    };
+    TranscriptActivity activity = Robolectric.setupActivity(TranscriptActivity.class);
     activity.startActivityForResult(new Intent().setType("audio/*"), 123);
     activity.startActivityForResult(new Intent().setType("image/*"), 456);
 
     shadowOf(activity).receiveResult(new Intent().setType("image/*"), Activity.RESULT_OK,
         new Intent().setData(Uri.parse("content:foo")));
-    transcript.assertEventsSoFar("onActivityResult called with requestCode 456, resultCode -1, intent data content:foo");
+    assertThat(activity.transcript)
+        .containsExactly(
+            "onActivityResult called with requestCode 456, resultCode -1, intent data content:foo");
   }
 
   @Test
   public void startActivityForResultAndReceiveResult_whenNoIntentMatches_shouldThrowException() throws Exception {
-    Activity activity = new Activity() {
-      @Override
-      protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        throw new IllegalStateException("should not be called");
-      }
-    };
+    ThrowOnResultActivity activity = Robolectric.buildActivity(ThrowOnResultActivity.class).get();
     activity.startActivityForResult(new Intent().setType("audio/*"), 123);
     activity.startActivityForResult(new Intent().setType("image/*"), 456);
 
@@ -199,9 +203,16 @@ public class ShadowActivityTest {
     }
   }
 
+  public static class ThrowOnResultActivity extends Activity {
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+      throw new IllegalStateException("should not be called");
+    }
+  }
+
   @Test
   public void shouldSupportStartActivityForResult() throws Exception {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     ShadowActivity shadowActivity = shadowOf(activity);
     Intent intent = new Intent().setClass(activity, DialogLifeCycleActivity.class);
     assertThat(shadowActivity.getNextStartedActivity()).isNull();
@@ -215,7 +226,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldSupportGetStartedActivitiesForResult() throws Exception {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     ShadowActivity shadowActivity = shadowOf(activity);
     Intent intent = new Intent().setClass(activity, DialogLifeCycleActivity.class);
 
@@ -231,7 +242,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldSupportPeekStartedActivitiesForResult() throws Exception {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     ShadowActivity shadowActivity = shadowOf(activity);
     Intent intent = new Intent().setClass(activity, DialogLifeCycleActivity.class);
 
@@ -247,11 +258,11 @@ public class ShadowActivityTest {
 
   @Test
   public void onContentChangedShouldBeCalledAfterContentViewIsSet() throws RuntimeException {
-    final Transcript transcript = new Transcript();
+    final List<String> transcript = new ArrayList<>();
     ActivityWithContentChangedTranscript customActivity = Robolectric.setupActivity(ActivityWithContentChangedTranscript.class);
     customActivity.setTranscript(transcript);
     customActivity.setContentView(R.layout.main);
-    transcript.assertEventsSoFar("onContentChanged was called; title is \"Main Layout\"");
+    assertThat(transcript).containsExactly("onContentChanged was called; title is \"Main Layout\"");
   }
 
   @Test
@@ -262,7 +273,7 @@ public class ShadowActivityTest {
   @Test
   public void shouldRunUiTasksImmediatelyByDefault() throws Exception {
     TestRunnable runnable = new TestRunnable();
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     activity.runOnUiThread(runnable);
     assertTrue(runnable.wasRun);
   }
@@ -271,7 +282,7 @@ public class ShadowActivityTest {
   public void shouldQueueUiTasksWhenUiThreadIsPaused() throws Exception {
     ShadowLooper.pauseMainLooper();
 
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     TestRunnable runnable = new TestRunnable();
     activity.runOnUiThread(runnable);
     assertFalse(runnable.wasRun);
@@ -282,7 +293,7 @@ public class ShadowActivityTest {
 
   @Test
   public void showDialog_shouldCreatePrepareAndShowDialog() {
-    final DialogLifeCycleActivity activity = create(DialogLifeCycleActivity.class);
+    final DialogLifeCycleActivity activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     final AtomicBoolean dialogWasShown = new AtomicBoolean(false);
 
     new Dialog(activity) {
@@ -305,7 +316,7 @@ public class ShadowActivityTest {
 
   @Test
   public void showDialog_shouldCreatePrepareAndShowDialogWithBundle() {
-    final DialogLifeCycleActivity activity = create(DialogLifeCycleActivity.class);
+    final DialogLifeCycleActivity activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     final AtomicBoolean dialogWasShown = new AtomicBoolean(false);
 
     new Dialog(activity) {
@@ -328,7 +339,7 @@ public class ShadowActivityTest {
 
   @Test
   public void showDialog_shouldReturnFalseIfDialogDoesNotExist() {
-    final DialogLifeCycleActivity activity = create(DialogLifeCycleActivity.class);
+    final DialogLifeCycleActivity activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     boolean dialogCreated = activity.showDialog(97, new Bundle());
 
     assertThat(dialogCreated).isFalse();
@@ -338,7 +349,7 @@ public class ShadowActivityTest {
 
   @Test
   public void showDialog_shouldReuseDialogs() {
-    final DialogCreatingActivity activity = create(DialogCreatingActivity.class);
+    final DialogCreatingActivity activity = Robolectric.setupActivity(DialogCreatingActivity.class);
     activity.showDialog(1);
     Dialog firstDialog = ShadowDialog.getLatestDialog();
     activity.showDialog(1);
@@ -349,7 +360,7 @@ public class ShadowActivityTest {
 
   @Test
   public void showDialog_shouldShowDialog() throws Exception {
-    final DialogCreatingActivity activity = create(DialogCreatingActivity.class);
+    final DialogCreatingActivity activity = Robolectric.setupActivity(DialogCreatingActivity.class);
     activity.showDialog(1);
     Dialog dialog = ShadowDialog.getLatestDialog();
     assertTrue(dialog.isShowing());
@@ -357,7 +368,7 @@ public class ShadowActivityTest {
 
   @Test
   public void dismissDialog_shouldDismissPreviouslyShownDialog() throws Exception {
-    final DialogCreatingActivity activity = create(DialogCreatingActivity.class);
+    final DialogCreatingActivity activity = Robolectric.setupActivity(DialogCreatingActivity.class);
     activity.showDialog(1);
     activity.dismissDialog(1);
     Dialog dialog = ShadowDialog.getLatestDialog();
@@ -366,13 +377,13 @@ public class ShadowActivityTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void dismissDialog_shouldThrowExceptionIfDialogWasNotPreviouslyShown() throws Exception {
-    final DialogCreatingActivity activity = create(DialogCreatingActivity.class);
+    final DialogCreatingActivity activity = Robolectric.setupActivity(DialogCreatingActivity.class);
     activity.dismissDialog(1);
   }
 
   @Test
   public void removeDialog_shouldCreateDialogAgain() {
-    final DialogCreatingActivity activity = create(DialogCreatingActivity.class);
+    final DialogCreatingActivity activity = Robolectric.setupActivity(DialogCreatingActivity.class);
     activity.showDialog(1);
     Dialog firstDialog = ShadowDialog.getLatestDialog();
 
@@ -387,7 +398,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldCallOnCreateDialogFromShowDialog() {
-    ActivityWithOnCreateDialog activity = create(ActivityWithOnCreateDialog.class);
+    ActivityWithOnCreateDialog activity = Robolectric.setupActivity(ActivityWithOnCreateDialog.class);
     activity.showDialog(123);
     assertTrue(activity.onCreateDialogWasCalled);
     assertThat(ShadowDialog.getLatestDialog()).isNotNull();
@@ -403,8 +414,37 @@ public class ShadowActivityTest {
   }
 
   @Test
+  @Config(minSdk = JELLY_BEAN)
+  public void shouldCallFinishOnFinishAffinity() {
+    Activity activity = new Activity();
+    activity.finishAffinity();
+
+    ShadowActivity shadowActivity = shadowOf(activity);
+    assertTrue(shadowActivity.isFinishing());
+  }
+
+  @Test
+  @Config(minSdk = LOLLIPOP)
+  public void shouldCallFinishOnFinishAndRemoveTask() {
+    Activity activity = new Activity();
+    activity.finishAndRemoveTask();
+
+    ShadowActivity shadowActivity = shadowOf(activity);
+    assertTrue(shadowActivity.isFinishing());
+  }
+
+  @Test
+  public void shouldCallFinishOnFinish() {
+    Activity activity = new Activity();
+    activity.finish();
+
+    ShadowActivity shadowActivity = shadowOf(activity);
+    assertTrue(shadowActivity.isFinishing());
+  }
+
+  @Test
   public void shouldSupportCurrentFocus() {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     ShadowActivity shadow = shadowOf(activity);
 
     assertNull(shadow.getCurrentFocus());
@@ -415,32 +455,9 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldSetOrientation() {
-    activity = create(DialogLifeCycleActivity.class);
+    activity = Robolectric.setupActivity(DialogLifeCycleActivity.class);
     activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     assertThat(activity.getRequestedOrientation()).isEqualTo(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-  }
-
-  @Test
-  public void retrieveIdOfResource() {
-    Activity activity = new Activity();
-
-    int id1 = R.string.hello;
-    String string = activity.getString(id1);
-    assertEquals("Hello", string);
-
-    int id = activity.getResources().getIdentifier("hello", "string", "org.robolectric");
-    assertThat(id).isEqualTo(R.string.hello);
-
-    String hello = activity.getResources().getString(id);
-    assertEquals("Hello", hello);
-  }
-
-  @Test
-  public void retrieveIdOfNonExistingResource() {
-    Activity activity = new Activity();
-
-    int id = activity.getResources().getIdentifier("just_alot_of_crap", "string", "org.robolectric");
-    assertThat(id).isEqualTo(0);
   }
 
   @Test
@@ -457,7 +474,7 @@ public class ShadowActivityTest {
 
     for (int mode : modes) {
       activity.setDefaultKeyMode(mode);
-      assertThat(shadow.getDefaultKeymode()).isEqualTo(mode).as("Unexpected key mode");
+      assertThat(shadow.getDefaultKeymode()).as("Unexpected key mode").isEqualTo(mode);
     }
   }
 
@@ -501,7 +518,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldGiveSharedPreferences() throws Exception {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     SharedPreferences preferences = activity.getPreferences(Context.MODE_PRIVATE);
     assertNotNull(preferences);
     preferences.edit().putString("foo", "bar").commit();
@@ -528,10 +545,10 @@ public class ShadowActivityTest {
 
   @Test
   public void recreateGoesThroughFullLifeCycle() throws Exception {
-    TestActivity activity = buildActivity(TestActivity.class).attach().get();
+    TestActivity activity = buildActivity(TestActivity.class).get();
     activity.recreate();
 
-    activity.transcript.assertEventsSoFar(
+    assertThat(activity.transcript).containsExactly(
         "onSaveInstanceState",
         "onPause",
         "onStop",
@@ -545,22 +562,6 @@ public class ShadowActivityTest {
 
     Integer storedValue = (Integer) activity.getLastNonConfigurationInstance();
     assertEquals(5, storedValue.intValue());
-  }
-
-  @Test
-  public void pauseAndThenResumeGoesThroughTheFullLifeCycle() throws Exception {
-    TestActivity activity = new TestActivity();
-
-    ShadowActivity shadow = shadowOf(activity);
-    shadow.pauseAndThenResume();
-
-    activity.transcript.assertEventsSoFar(
-        "onPause",
-        "onStop",
-        "onRestart",
-        "onStart",
-        "onResume"
-    );
   }
 
   @Test
@@ -601,21 +602,20 @@ public class ShadowActivityTest {
     assertThat(root).isNotEqualTo(null);
     assertThat(decorView.getWidth()).isNotEqualTo(0);
     assertThat(decorView.getHeight()).isNotEqualTo(0);
-    Display display = Shadow.newInstanceOf(Display.class);
-    ShadowDisplay shadowDisplay = Shadows.shadowOf(display);
-    assertThat(decorView.getWidth()).isEqualTo(shadowDisplay.getWidth());
-    assertThat(decorView.getHeight()).isEqualTo(shadowDisplay.getHeight());
+    Display display = ShadowDisplay.getDefaultDisplay();
+    assertThat(decorView.getWidth()).isEqualTo(display.getWidth());
+    assertThat(decorView.getHeight()).isEqualTo(display.getHeight());
   }
 
   @Test
-  @Config(sdk = {Build.VERSION_CODES.M})
+  @Config(minSdk = M)
   public void requestsPermissions() {
     TestActivity activity = new TestActivity();
     activity.requestPermissions(new String[0], -1);
   }
 
   private static class TestActivity extends Activity {
-    Transcript transcript = new Transcript();
+    List<String> transcript = new ArrayList<>();
 
     private boolean isRecreating = false;
 
@@ -638,7 +638,7 @@ public class ShadowActivityTest {
     @Override
     public Object onRetainNonConfigurationInstance() {
       transcript.add("onRetainNonConfigurationInstance");
-      return new Integer(5);
+      return 5;
     }
 
     @Override
@@ -698,28 +698,23 @@ public class ShadowActivityTest {
 
   @Test
   public void getAndSetParentActivity_shouldWorkForTestingPurposes() throws Exception {
-    Activity parentActivity = new Activity() {
-    };
-    Activity activity = new Activity() {
-    };
+    Activity parentActivity = new Activity();
+    Activity activity = new Activity();
     shadowOf(activity).setParent(parentActivity);
     assertSame(parentActivity, activity.getParent());
   }
 
   @Test
   public void getAndSetRequestedOrientation_shouldRemember() throws Exception {
-    Activity activity = new Activity() {
-    };
+    Activity activity = new Activity();
     activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, activity.getRequestedOrientation());
   }
 
   @Test
   public void getAndSetRequestedOrientation_shouldDelegateToParentIfPresent() throws Exception {
-    Activity parentActivity = new Activity() {
-    };
-    Activity activity = new Activity() {
-    };
+    Activity parentActivity = new Activity();
+    Activity activity = new Activity();
     shadowOf(activity).setParent(parentActivity);
     parentActivity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
     assertEquals(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT, activity.getRequestedOrientation());
@@ -729,7 +724,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldSupportIsTaskRoot() throws Exception {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     assertTrue(activity.isTaskRoot()); // as implemented, Activities are considered task roots by default
 
     shadowOf(activity).setIsTaskRoot(false);
@@ -738,14 +733,14 @@ public class ShadowActivityTest {
 
   @Test
   public void getPendingTransitionEnterAnimationResourceId_should() throws Exception {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     activity.overridePendingTransition(15, 2);
     assertThat(shadowOf(activity).getPendingTransitionEnterAnimationResourceId()).isEqualTo(15);
   }
 
   @Test
   public void getPendingTransitionExitAnimationResourceId_should() throws Exception {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     activity.overridePendingTransition(15, 2);
     assertThat(shadowOf(activity).getPendingTransitionExitAnimationResourceId()).isEqualTo(2);
   }
@@ -786,7 +781,7 @@ public class ShadowActivityTest {
 
   @Test
   public void canStartActivityFromFragment() {
-    final Activity activity = buildActivity(Activity.class).create().get();
+    final Activity activity = Robolectric.setupActivity(Activity.class);
 
     Intent intent = new Intent(Intent.ACTION_VIEW);
     activity.startActivityFromFragment(new Fragment(), intent, 4);
@@ -812,7 +807,7 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldUseAnimationOverride() {
-    Activity activity = buildActivity(Activity.class).create().get();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     Intent intent = new Intent(activity, OptionsMenuActivity.class);
 
     Bundle animationBundle = ActivityOptions.makeCustomAnimation(activity, R.anim.test_anim_1, R.anim.test_anim_1).toBundle();
@@ -822,30 +817,36 @@ public class ShadowActivityTest {
 
   @Test
   public void shouldCallActivityLifecycleCallbacks() {
-    final Transcript transcript = new Transcript();
+    final List<String> transcript = new ArrayList<>();
     final ActivityController<Activity> controller = buildActivity(Activity.class);
     RuntimeEnvironment.application.registerActivityLifecycleCallbacks(new ActivityLifecycleCallbacks(transcript));
 
     controller.create();
-    transcript.assertEventsSoFar("onActivityCreated");
+    assertThat(transcript).containsExactly("onActivityCreated");
+    transcript.clear();
 
     controller.start();
-    transcript.assertEventsSoFar("onActivityStarted");
+    assertThat(transcript).containsExactly("onActivityStarted");
+    transcript.clear();
 
     controller.resume();
-    transcript.assertEventsSoFar("onActivityResumed");
+    assertThat(transcript).containsExactly("onActivityResumed");
+    transcript.clear();
 
     controller.saveInstanceState(new Bundle());
-    transcript.assertEventsSoFar("onActivitySaveInstanceState");
+    assertThat(transcript).containsExactly("onActivitySaveInstanceState");
+    transcript.clear();
 
     controller.pause();
-    transcript.assertEventsSoFar("onActivityPaused");
+    assertThat(transcript).containsExactly("onActivityPaused");
+    transcript.clear();
 
     controller.stop();
-    transcript.assertEventsSoFar("onActivityStopped");
+    assertThat(transcript).containsExactly("onActivityStopped");
+    transcript.clear();
 
     controller.destroy();
-    transcript.assertEventsSoFar("onActivityDestroyed");
+    assertThat(transcript).containsExactly("onActivityDestroyed");
   }
 
   public static class ChildActivity extends Activity { }
@@ -862,14 +863,14 @@ public class ShadowActivityTest {
 
   @Test
   public void getCallingActivity_defaultsToNull() {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
 
     assertNull(activity.getCallingActivity());
   }
 
   @Test
   public void getCallingActivity_returnsSetValue() {
-    Activity activity = new Activity();
+    Activity activity = Robolectric.setupActivity(Activity.class);
     ComponentName componentName = new ComponentName("com.example.package", "SomeActivity");
 
     ShadowActivity shadowActivity = shadowOf(activity);
@@ -879,28 +880,6 @@ public class ShadowActivityTest {
   }
 
   /////////////////////////////
-
-  private void destroy(Activity activity) {
-    new ActivityController(new CoreShadowsAdapter(), activity).destroy();
-  }
-
-  private <T extends Activity> T create(Class<T> activityClass) {
-    return Robolectric.buildActivity(activityClass).create().get();
-  }
-
-  public AndroidManifest newConfigWith(String contents) throws IOException {
-    return newConfigWith("org.robolectric", contents);
-  }
-
-  private AndroidManifest newConfigWith(String packageName, String contents) throws IOException {
-    File f = temporaryFolder.newFile("whatever.xml",
-        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n" +
-            "          package=\"" + packageName + "\">\n" +
-            "    " + contents + "\n" +
-            "</manifest>\n");
-    return new AndroidManifest(Fs.newFile(f), null, null);
-  }
 
   private static class DialogCreatingActivity extends Activity {
     @Override
@@ -993,14 +972,17 @@ public class ShadowActivityTest {
   }
 
   private static class ActivityWithContentChangedTranscript extends Activity {
-    private Transcript transcript;
+    private List<String> transcript;
 
     @Override
     public void onContentChanged() {
-      transcript.add("onContentChanged was called; title is \"" + shadowOf(findViewById(R.id.title)).innerText() + "\"");
+      transcript.add(
+          "onContentChanged was called; title is \""
+              + shadowOf((View) findViewById(R.id.title)).innerText()
+              + "\"");
     }
 
-    private void setTranscript(Transcript transcript) {
+    private void setTranscript(List<String> transcript) {
       this.transcript = transcript;
     }
   }
@@ -1016,9 +998,9 @@ public class ShadowActivityTest {
   }
 
   private static class ActivityLifecycleCallbacks implements Application.ActivityLifecycleCallbacks {
-    private final Transcript transcript;
+    private final List<String> transcript;
 
-    public ActivityLifecycleCallbacks(Transcript transcript) {
+    public ActivityLifecycleCallbacks(List<String> transcript) {
       this.transcript = transcript;
     }
 

@@ -1,26 +1,23 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CursorAdapter;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static android.widget.CursorAdapter.FLAG_AUTO_REQUERY;
-import static android.widget.CursorAdapter.FLAG_REGISTER_CONTENT_OBSERVER;
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowCursorAdapterTest {
 
   private Cursor curs;
@@ -100,31 +97,13 @@ public class ShadowCursorAdapterTest {
     }
   }
 
-  @Test public void shouldNotRegisterObserversIfNoFlagsAreSet() throws Exception {
-    adapter = new TestAdapterWithFlags(curs, 0);
-    assertThat(Shadows.shadowOf(adapter).mChangeObserver).isNull();
-    assertThat(Shadows.shadowOf(adapter).mDataSetObserver).isNull();
-  }
-
-  @Test public void shouldRegisterObserversWhenRegisterObserverFlagIsSet() throws Exception {
-    adapter = new TestAdapterWithFlags(curs, FLAG_REGISTER_CONTENT_OBSERVER);
-    assertThat(Shadows.shadowOf(adapter).mChangeObserver).isNotNull();
-    assertThat(Shadows.shadowOf(adapter).mDataSetObserver).isNotNull();
-  }
-
-  @Test public void shouldRegisterObserversWhenAutoRequeryFlagIsSet() throws Exception {
-    adapter = new TestAdapterWithFlags(curs, FLAG_AUTO_REQUERY);
-    assertThat(Shadows.shadowOf(adapter).mChangeObserver).isNotNull();
-    assertThat(Shadows.shadowOf(adapter).mDataSetObserver).isNotNull();
-  }
-
   @Test public void shouldNotErrorOnCursorChangeWhenNoFlagsAreSet() throws Exception {
     adapter = new TestAdapterWithFlags(curs, 0);
     adapter.changeCursor(database.rawQuery("SELECT * FROM table_name;", null));
     assertThat(adapter.getCursor()).isNotSameAs(curs);
   }
 
-  private class TestAdapter extends CursorAdapter {
+  private static class TestAdapter extends CursorAdapter {
 
     public TestAdapter(Cursor curs) {
       super(RuntimeEnvironment.application, curs, false);
@@ -140,7 +119,7 @@ public class ShadowCursorAdapterTest {
     }
   }
 
-  private class TestAdapterWithFlags extends CursorAdapter {
+  private static class TestAdapterWithFlags extends CursorAdapter {
     public TestAdapterWithFlags(Cursor c, int flags) {
       super(RuntimeEnvironment.application, c, flags);
     }

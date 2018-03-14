@@ -1,18 +1,18 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.os.ParcelFileDescriptor;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 
-import java.io.File;
-import java.io.FileOutputStream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowParcelFileDescriptorTest {
   private File file;
   private File readOnlyFile;
@@ -96,5 +96,22 @@ public class ShadowParcelFileDescriptorTest {
     ParcelFileDescriptor.AutoCloseOutputStream os = new ParcelFileDescriptor.AutoCloseOutputStream(pfd);
     os.close();
     assertThat(pfd.getFileDescriptor().valid()).isFalse();
+  }
+
+  @Test
+  public void testCreatePipe() throws IOException {
+    ParcelFileDescriptor[] pipe = ParcelFileDescriptor.createPipe();
+    ParcelFileDescriptor readSide = pipe[0];
+    ParcelFileDescriptor writeSide = pipe[1];
+    byte[] dataToWrite = new byte[] {0,1,2,3,4};
+    ParcelFileDescriptor.AutoCloseInputStream inputStream = new ParcelFileDescriptor.AutoCloseInputStream(readSide);
+    ParcelFileDescriptor.AutoCloseOutputStream outputStream = new ParcelFileDescriptor.AutoCloseOutputStream(writeSide);
+    outputStream.write(dataToWrite);
+    byte[] read = new byte[dataToWrite.length];
+    int byteCount = inputStream.read(read);
+    inputStream.close();
+    outputStream.close();
+    assertThat(byteCount).isEqualTo(dataToWrite.length);
+    assertThat(read).isEqualTo(dataToWrite);
   }
 }

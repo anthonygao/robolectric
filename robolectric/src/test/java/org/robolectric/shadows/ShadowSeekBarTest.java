@@ -1,30 +1,31 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.widget.SeekBar;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
-import org.robolectric.util.Transcript;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowSeekBarTest {
 
   private SeekBar seekBar;
   private ShadowSeekBar shadow;
   private SeekBar.OnSeekBarChangeListener listener;
-  private Transcript transcript;
+  private List<String> transcript;
 
   @Before
   public void setup() {
     seekBar = new SeekBar(RuntimeEnvironment.application);
     shadow = Shadows.shadowOf(seekBar);
     listener = new TestSeekBarChangedListener();
-    transcript = new Transcript();
+    transcript = new ArrayList<>();
     seekBar.setOnSeekBarChangeListener(listener);
   }
 
@@ -38,7 +39,7 @@ public class ShadowSeekBarTest {
   @Test
   public void testOnChangeNotification() {
     seekBar.setProgress(5);
-    transcript.assertEventsSoFar("onProgressChanged() - 5");
+    assertThat(transcript).containsExactly("onProgressChanged() - 5");
   }
 
   private class TestSeekBarChangedListener implements SeekBar.OnSeekBarChangeListener {

@@ -1,41 +1,40 @@
 package org.robolectric.shadows;
 
-import android.content.ContentProvider;
-import android.content.ContentProviderClient;
-import android.content.ContentProviderOperation;
-import android.content.ContentResolver;
-import android.content.ContentValues;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Bundle;
-import android.os.CancellationSignal;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.annotation.Config;
-
-import java.util.ArrayList;
-
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.Mockito.verify;
 import static org.mockito.MockitoAnnotations.initMocks;
 import static org.robolectric.Shadows.shadowOf;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.content.ContentProvider;
+import android.content.ContentProviderClient;
+import android.content.ContentProviderOperation;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.net.Uri;
+import android.os.Bundle;
+import android.os.CancellationSignal;
+import java.util.ArrayList;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
+
+@RunWith(RobolectricTestRunner.class)
 public class ShadowContentProviderClientTest {
 
-  static final String AUTHORITY = "org.robolectric";
-  static final Uri URI = Uri.parse("content://" + AUTHORITY);
-  static final ContentValues VALUES = new ContentValues();
-  static final String[] PROJECTION = null;
-  static final String SELECTION = "1=?";
-  static final String[] SELECTION_ARGS = {"1"};
-  static final String SORT_ORDER = "DESC";
-  static final String MIME_TYPE = "application/octet-stream";
+  private static final String AUTHORITY = "org.robolectric";
+  private final Uri URI = Uri.parse("content://" + AUTHORITY);
+  private final ContentValues VALUES = new ContentValues();
+  private static final String[] PROJECTION = null;
+  private static final String SELECTION = "1=?";
+  private static final String[] SELECTION_ARGS = {"1"};
+  private static final String SORT_ORDER = "DESC";
+  private static final String MIME_TYPE = "application/octet-stream";
 
   @Mock ContentProvider provider;
   ContentResolver contentResolver = RuntimeEnvironment.application.getContentResolver();
@@ -43,7 +42,7 @@ public class ShadowContentProviderClientTest {
   @Before
   public void setUp() {
     initMocks(this);
-    ShadowContentResolver.registerProvider(AUTHORITY, provider);
+    ShadowContentResolver.registerProviderInternal(AUTHORITY, provider);
   }
 
   @Test
@@ -76,10 +75,7 @@ public class ShadowContentProviderClientTest {
   }
 
   @Test
-  @Config(sdk = {
-      Build.VERSION_CODES.JELLY_BEAN_MR2,
-      Build.VERSION_CODES.KITKAT,
-      Build.VERSION_CODES.LOLLIPOP })
+  @Config(minSdk = JELLY_BEAN_MR2)
   public void shouldDelegateToContentProvider() throws Exception {
     ContentProviderClient client = contentResolver.acquireContentProviderClient(AUTHORITY);
 

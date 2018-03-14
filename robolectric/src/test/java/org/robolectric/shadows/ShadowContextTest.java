@@ -1,42 +1,45 @@
 package org.robolectric.shadows;
 
-import android.content.Context;
-import android.content.res.TypedArray;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.R;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.res.Attribute;
-import org.robolectric.res.PackageResourceLoader;
-import org.robolectric.res.ResourceLoader;
-import org.robolectric.util.TestUtil;
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.content.res.TypedArray;
+import android.os.Build.VERSION_CODES;
+import android.util.AttributeSet;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.R;
+import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 
-import static java.util.Arrays.asList;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.util.TestUtil.TEST_PACKAGE;
-import static org.robolectric.util.TestUtil.TEST_RESOURCE_PATH;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowContextTest {
   private final Context context = RuntimeEnvironment.application;
 
-  @Before
-  public void setUp() throws Exception {
-    File dataDir = new File(RuntimeEnvironment.getPackageManager()
-        .getPackageInfo("org.robolectric", 0).applicationInfo.dataDir);
+  @Test
+  @Config(minSdk = JELLY_BEAN_MR1)
+  public void createConfigurationContext() {
+    assertThat(RuntimeEnvironment.application.createConfigurationContext(new Configuration())).isNotNull();
+  }
 
-    File[] files = dataDir.listFiles();
-    assertThat(files)
-      .isNotNull()
-      .isEmpty();
+  @Test
+  @Config(minSdk = VERSION_CODES.O)
+  public void startForegroundService() {
+    Intent intent = new Intent();
+    RuntimeEnvironment.application.startForegroundService(intent);
+    assertThat(ShadowApplication.getInstance().getNextStartedService()).isEqualTo(intent);
   }
 
   @Test
@@ -49,7 +52,7 @@ public class ShadowContextTest {
 
   @Test
   public void shouldCreateIfDoesNotExistAndGetApplicationDataDirectory() throws Exception {
-    File dataDir = new File(RuntimeEnvironment.getPackageManager()
+    File dataDir = new File(context.getPackageManager()
         .getPackageInfo("org.robolectric", 0).applicationInfo.dataDir, "data");
 
     assertThat(dataDir).doesNotExist();
@@ -62,10 +65,10 @@ public class ShadowContextTest {
 
   @Test
   public void shouldStubThemeStuff() throws Exception {
-    assertThat(context.obtainStyledAttributes(null)).isNotNull();
-    assertThat(context.obtainStyledAttributes(0, null)).isNotNull();
-    assertThat(context.obtainStyledAttributes(null, null)).isNotNull();
-    assertThat(context.obtainStyledAttributes(null, null, 0, 0)).isNotNull();
+    assertThat(context.obtainStyledAttributes(new int[0])).isNotNull();
+    assertThat(context.obtainStyledAttributes(0, new int[0])).isNotNull();
+    assertThat(context.obtainStyledAttributes(null, new int[0])).isNotNull();
+    assertThat(context.obtainStyledAttributes(null, new int[0], 0, 0)).isNotNull();
   }
 
   @Test
@@ -88,7 +91,7 @@ public class ShadowContextTest {
       .endsWith(File.separator + "__test__");
 
     try (FileOutputStream fos = new FileOutputStream(cacheTest)) {
-      fos.write("test".getBytes());
+      fos.write("test".getBytes(UTF_8));
     }
     assertThat(cacheTest).exists();
   }
@@ -103,7 +106,7 @@ public class ShadowContextTest {
       .endsWith(File.separator + "__test__");
 
     try (FileOutputStream fos = new FileOutputStream(cacheTest)) {
-      fos.write("test".getBytes());
+      fos.write("test".getBytes(UTF_8));
     }
 
     assertThat(cacheTest).exists();
@@ -149,14 +152,14 @@ public class ShadowContextTest {
     String fileContents = "blah";
 
     File file = new File(context.getFilesDir(), "__test__");
-    try (FileWriter fileWriter = new FileWriter(file)) {
+    try (Writer fileWriter = Files.newBufferedWriter(file.toPath(), UTF_8)) {
       fileWriter.write(fileContents);
     }
 
     try (FileInputStream fileInputStream = context.openFileInput("__test__")) {
       byte[] bytes = new byte[fileContents.length()];
       fileInputStream.read(bytes);
-      assertThat(bytes).isEqualTo(fileContents.getBytes());
+      assertThat(bytes).isEqualTo(fileContents.getBytes(UTF_8));
     }
   }
 
@@ -169,13 +172,13 @@ public class ShadowContextTest {
   public void openFileOutput_shouldReturnAFileOutputStream() throws Exception {
     File file = new File("__test__");
     String fileContents = "blah";
-    try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", -1)) {
-      fileOutputStream.write(fileContents.getBytes());
+    try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", Context.MODE_PRIVATE)) {
+      fileOutputStream.write(fileContents.getBytes(UTF_8));
     }
     try (FileInputStream fileInputStream = new FileInputStream(new File(context.getFilesDir(), file.getName()))) {
       byte[] readBuffer = new byte[fileContents.length()];
       fileInputStream.read(readBuffer);
-      assertThat(new String(readBuffer)).isEqualTo(fileContents);
+      assertThat(new String(readBuffer, UTF_8)).isEqualTo(fileContents);
     }
   }
 
@@ -191,15 +194,15 @@ public class ShadowContextTest {
     String appendedFileContents = "bar";
     String finalFileContents = initialFileContents + appendedFileContents;
     try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", Context.MODE_APPEND)) {
-      fileOutputStream.write(initialFileContents.getBytes());
+      fileOutputStream.write(initialFileContents.getBytes(UTF_8));
     }
     try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", Context.MODE_APPEND)) {
-      fileOutputStream.write(appendedFileContents.getBytes());
+      fileOutputStream.write(appendedFileContents.getBytes(UTF_8));
     }
     try (FileInputStream fileInputStream = new FileInputStream(new File(context.getFilesDir(), file.getName()))) {
       byte[] readBuffer = new byte[finalFileContents.length()];
       fileInputStream.read(readBuffer);
-      assertThat(new String(readBuffer)).isEqualTo(finalFileContents);
+      assertThat(new String(readBuffer, UTF_8)).isEqualTo(finalFileContents);
     }
   }
 
@@ -209,15 +212,15 @@ public class ShadowContextTest {
     String initialFileContents = "foo";
     String newFileContents = "bar";
     try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", 0)) {
-      fileOutputStream.write(initialFileContents.getBytes());
+      fileOutputStream.write(initialFileContents.getBytes(UTF_8));
     }
     try (FileOutputStream fileOutputStream = context.openFileOutput("__test__", 0)) {
-      fileOutputStream.write(newFileContents.getBytes());
+      fileOutputStream.write(newFileContents.getBytes(UTF_8));
     }
     try (FileInputStream fileInputStream = new FileInputStream(new File(context.getFilesDir(), file.getName()))) {
       byte[] readBuffer = new byte[newFileContents.length()];
       fileInputStream.read(readBuffer);
-      assertThat(new String(readBuffer)).isEqualTo(newFileContents);
+      assertThat(new String(readBuffer, UTF_8)).isEqualTo(newFileContents);
     }
   }
 
@@ -241,16 +244,13 @@ public class ShadowContextTest {
 
   @Test
   public void obtainStyledAttributes_shouldExtractAttributesFromAttributeSet() throws Exception {
-    ResourceLoader resourceLoader = new PackageResourceLoader(TEST_RESOURCE_PATH);
-    TestUtil.createResourcesFor(resourceLoader);
-
-    RoboAttributeSet roboAttributeSet = new RoboAttributeSet(asList(
-        new Attribute(TEST_PACKAGE + ":attr/itemType", "ungulate", TEST_PACKAGE),
-        new Attribute(TEST_PACKAGE + ":attr/scrollBars", "horizontal|vertical", TEST_PACKAGE),
-        new Attribute(TEST_PACKAGE + ":attr/quitKeyCombo", "^q", TEST_PACKAGE),
-        new Attribute(TEST_PACKAGE + ":attr/aspectRatio", "1.5", TEST_PACKAGE),
-        new Attribute(TEST_PACKAGE + ":attr/aspectRatioEnabled", "true", TEST_PACKAGE)
-    ), resourceLoader);
+    AttributeSet roboAttributeSet = Robolectric.buildAttributeSet()
+        .addAttribute(R.attr.itemType, "ungulate")
+        .addAttribute(R.attr.scrollBars, "horizontal|vertical")
+        .addAttribute(R.attr.quitKeyCombo, "^q")
+        .addAttribute(R.attr.aspectRatio, "1.5")
+        .addAttribute(R.attr.aspectRatioEnabled, "true")
+        .build();
 
     TypedArray a = context.obtainStyledAttributes(roboAttributeSet, R.styleable.CustomView);
     assertThat(a.getInt(R.styleable.CustomView_itemType, -1234)).isEqualTo(1 /* ungulate */);
@@ -263,5 +263,18 @@ public class ShadowContextTest {
     TypedArray typedArray = context.obtainStyledAttributes(roboAttributeSet, new int[]{R.attr.quitKeyCombo, R.attr.itemType});
     assertThat(typedArray.getString(0)).isEqualTo("^q");
     assertThat(typedArray.getInt(1, -1234)).isEqualTo(1 /* ungulate */);
+  }
+
+  @Test
+  public void whenStyleParentIsReference_obtainStyledAttributes_shouldResolveParent() throws Exception {
+    RuntimeEnvironment.application.setTheme(R.style.Theme_ThemeReferredToByParentAttrReference);
+
+    AttributeSet roboAttributeSet = Robolectric.buildAttributeSet()
+        .setStyleAttribute("@style/Theme.ThemeWithAttrReferenceAsParent")
+        .build();
+
+    TypedArray a = context.obtainStyledAttributes(roboAttributeSet, new int[] { R.attr.string1, R.attr.string2 });
+    assertThat(a.getString(0)).isEqualTo("string 1 from Theme.ThemeWithAttrReferenceAsParent");
+    assertThat(a.getString(1)).isEqualTo("string 2 from StyleReferredToByParentAttrReference");
   }
 }

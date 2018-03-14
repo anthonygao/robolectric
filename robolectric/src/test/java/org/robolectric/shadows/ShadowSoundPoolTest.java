@@ -1,26 +1,22 @@
 package org.robolectric.shadows;
 
-import android.media.AudioManager;
-import android.media.SoundPool;
-import android.os.Build;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
-import org.robolectric.annotation.Config;
-
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.media.AudioManager;
+import android.media.SoundPool;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
+@RunWith(RobolectricTestRunner.class)
 public class ShadowSoundPoolTest {
 
   @Test
-  @Config(sdk = {
-          Build.VERSION_CODES.LOLLIPOP,
-          Build.VERSION_CODES.LOLLIPOP_MR1,
-          Build.VERSION_CODES.M,
-  })
+  @Config(minSdk = LOLLIPOP)
   public void shouldCreateSoundPool_Lollipop() {
     SoundPool soundPool = new SoundPool.Builder().build();
     assertThat(soundPool).isNotNull();
@@ -30,12 +26,7 @@ public class ShadowSoundPoolTest {
   }
 
   @Test
-  @Config(sdk = {
-          Build.VERSION_CODES.JELLY_BEAN,
-          Build.VERSION_CODES.JELLY_BEAN_MR1,
-          Build.VERSION_CODES.JELLY_BEAN_MR2,
-          Build.VERSION_CODES.KITKAT
-  })
+  @Config(maxSdk = JELLY_BEAN_MR2)
   public void shouldCreateSoundPool_JellyBean() {
     SoundPool soundPool = new SoundPool(1, AudioManager.STREAM_MUSIC, 0);
     assertThat(soundPool).isNotNull();

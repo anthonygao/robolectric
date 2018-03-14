@@ -7,30 +7,29 @@ import static org.junit.Assert.assertNull;
 import static org.robolectric.RuntimeEnvironment.application;
 import static org.robolectric.Shadows.shadowOf;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.util.Transcript;
-
 import android.util.SparseBooleanArray;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.util.ReflectionHelpers;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowListViewTest {
 
-  private Transcript transcript;
+  private List<String> transcript;
   private ListView listView;
   private int checkedItemPosition;
   private SparseBooleanArray checkedItemPositions;
@@ -38,7 +37,7 @@ public class ShadowListViewTest {
 
   @Before
   public void setUp() throws Exception {
-    transcript = new Transcript();
+    transcript = new ArrayList<>();
     listView = new ListView(RuntimeEnvironment.application);
   }
 
@@ -63,10 +62,10 @@ public class ShadowListViewTest {
     assertThat(shadowOf(listView).getHeaderViews().get(2)).isSameAs(view2);
     assertThat(shadowOf(listView).getHeaderViews().get(3)).isSameAs(view3);
 
-    assertThat(listView.findViewById(0)).isNotNull();
-    assertThat(listView.findViewById(1)).isNotNull();
-    assertThat(listView.findViewById(2)).isNotNull();
-    assertThat(listView.findViewById(3)).isNotNull();
+    assertThat((View) listView.findViewById(0)).isNotNull();
+    assertThat((View) listView.findViewById(1)).isNotNull();
+    assertThat((View) listView.findViewById(2)).isNotNull();
+    assertThat((View) listView.findViewById(3)).isNotNull();
   }
 
   @Test
@@ -76,7 +75,7 @@ public class ShadowListViewTest {
 
     listView.addHeaderView(view);
 
-    assertThat(listView.findViewById(42)).isSameAs(view);
+    assertThat((View) listView.findViewById(42)).isSameAs(view);
   }
 
   @Test
@@ -97,7 +96,7 @@ public class ShadowListViewTest {
 
     listView.addFooterView(view);
 
-    assertThat(listView.findViewById(42)).isSameAs(view);
+    assertThat((View) listView.findViewById(42)).isSameAs(view);
   }
 
   @Test
@@ -142,7 +141,7 @@ public class ShadowListViewTest {
     });
 
     listView.performItemClick(null, 0, -1);
-    transcript.assertEventsSoFar("item was clicked: 0");
+    assertThat(transcript).containsExactly("item was clicked: 0");
   }
 
   @Test
@@ -173,7 +172,7 @@ public class ShadowListViewTest {
       }
     });
     shadowListView.clickFirstItemContainingText("Item 1");
-    transcript.assertEventsSoFar("clicked on item 1");
+    assertThat(transcript).containsExactly("clicked on item 1");
   }
 
   @Test
@@ -193,7 +192,7 @@ public class ShadowListViewTest {
       }
     });
     shadowListView.clickFirstItemContainingText("Item 3");
-    transcript.assertEventsSoFar("clicked on item Item 3");
+    assertThat(transcript).containsExactly("clicked on item Item 3");
   }
 
   @Test(expected = IllegalArgumentException.class)
@@ -228,7 +227,7 @@ public class ShadowListViewTest {
   public void getPositionForView_shouldReturnInvalidPositionForViewThatIsNotFound() throws Exception {
     prepareWithListAdapter();
     View view = new View(RuntimeEnvironment.application);
-    shadowOf(view).setMyParent(new StubViewRoot()); // Android implementation requires the item have a parent
+    shadowOf(view).setMyParent(ReflectionHelpers.createNullProxy(ViewParent.class)); // Android implementation requires the item have a parent
     assertThat(listView.getPositionForView(view)).isEqualTo(AdapterView.INVALID_POSITION);
   }
 

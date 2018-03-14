@@ -1,5 +1,10 @@
 package org.robolectric.shadows;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
@@ -7,13 +12,11 @@ import android.graphics.drawable.LayerDrawable;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.R;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 
-import static org.junit.Assert.*;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowLayerDrawableTest {
   /**
    * drawables
@@ -31,13 +34,13 @@ public class ShadowLayerDrawableTest {
   @Before
   public void setUp() {
     drawable1000 = new BitmapDrawable(BitmapFactory.decodeResource(
-        RuntimeEnvironment.application.getResources(), 0x00001000));
+        RuntimeEnvironment.application.getResources(), R.drawable.an_image));
     drawable2000 = new BitmapDrawable(BitmapFactory.decodeResource(
-        RuntimeEnvironment.application.getResources(), 0x00002000));
+        RuntimeEnvironment.application.getResources(), R.drawable.an_other_image));
     drawable3000 = new BitmapDrawable(BitmapFactory.decodeResource(
-        RuntimeEnvironment.application.getResources(), 0x00003000));
+        RuntimeEnvironment.application.getResources(), R.drawable.third_image));
     drawable4000 = new BitmapDrawable(BitmapFactory.decodeResource(
-        RuntimeEnvironment.application.getResources(), 0x00004000));
+        RuntimeEnvironment.application.getResources(), R.drawable.fourth_image));
 
     drawables = new Drawable[]{drawable1000, drawable2000, drawable3000};
   }

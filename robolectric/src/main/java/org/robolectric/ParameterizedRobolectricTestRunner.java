@@ -1,19 +1,5 @@
 package org.robolectric;
 
-import org.junit.Assert;
-import org.junit.runner.Runner;
-import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
-import org.junit.runners.model.FrameworkMethod;
-import org.junit.runners.model.InitializationError;
-import org.junit.runners.model.Statement;
-import org.junit.runners.model.TestClass;
-import org.robolectric.annotation.Config;
-import org.robolectric.internal.DeepCloner;
-import org.robolectric.internal.SdkEnvironment;
-import org.robolectric.manifest.AndroidManifest;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -24,6 +10,17 @@ import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import javax.annotation.Nonnull;
+import org.junit.Assert;
+import org.junit.runner.Runner;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Suite;
+import org.junit.runners.model.FrameworkMethod;
+import org.junit.runners.model.InitializationError;
+import org.junit.runners.model.TestClass;
+import org.robolectric.internal.DeepCloner;
+import org.robolectric.internal.SandboxTestRunner;
+import org.robolectric.internal.SdkEnvironment;
 
 /**
  * A Parameterized test runner for Robolectric. Copied from the {@link Parameterized} class, then modified the custom
@@ -35,14 +32,14 @@ public final class ParameterizedRobolectricTestRunner extends Suite {
 
   /**
    * Annotation for a method which provides parameters to be injected into the test class constructor by
-   * <code>Parameterized</code>
+   * {@code Parameterized}
    */
   @Retention(RetentionPolicy.RUNTIME)
   @Target(ElementType.METHOD)
   public @interface Parameters {
 
     /**
-     * <p>Optional pattern to derive the test's name from the parameters. Use numbers in braces to refer to the
+     * Optional pattern to derive the test's name from the parameters. Use numbers in braces to refer to the
      * parameters or the additional data as follows:
      *
      * <pre>
@@ -51,7 +48,8 @@ public final class ParameterizedRobolectricTestRunner extends Suite {
      * {1} - the second parameter value
      * etc...
      * </pre>
-     * <p> Default value is "{index}" for compatibility with previous JUnit versions. </p>
+     *
+     * Default value is "{index}" for compatibility with previous JUnit versions.
      *
      * @return {@link MessageFormat} pattern string, except the index placeholder.
      * @see MessageFormat
@@ -101,14 +99,15 @@ public final class ParameterizedRobolectricTestRunner extends Suite {
       validateOnlyOneConstructor(errors);
     }
 
+    @Nonnull
     @Override
-    Statement methodBlock(FrameworkMethod method, Config config, AndroidManifest appManifest, SdkEnvironment sdkEnvironment) {
-      configureShadows(sdkEnvironment, config);
+    protected SdkEnvironment getSandbox(FrameworkMethod method) {
+      SdkEnvironment sandbox = super.getSandbox(method);
 
-      DeepCloner deepCloner = new DeepCloner(sdkEnvironment.getRobolectricClassLoader());
+      DeepCloner deepCloner = new DeepCloner(sandbox.getRobolectricClassLoader());
       parameters = deepCloner.clone(parameters);
 
-      return super.methodBlock(method, config, appManifest, sdkEnvironment);
+      return sandbox;
     }
 
     @Override
@@ -117,7 +116,7 @@ public final class ParameterizedRobolectricTestRunner extends Suite {
     }
 
     @Override
-    protected HelperTestRunner getHelperTestRunner(Class bootstrappedTestClass) {
+    protected SandboxTestRunner.HelperTestRunner getHelperTestRunner(Class bootstrappedTestClass) {
       try {
         return new HelperTestRunner(bootstrappedTestClass) {
           @Override

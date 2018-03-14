@@ -1,5 +1,10 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.robolectric.Shadows.shadowOf;
+import static org.robolectric.shadows.ShadowPath.Point.Type.LINE_TO;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -12,15 +17,10 @@ import android.graphics.RectF;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
-import org.robolectric.internal.Shadow;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.shadow.api.Shadow;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.robolectric.Shadows.shadowOf;
-import static org.robolectric.shadows.ShadowPath.Point.Type.LINE_TO;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowCanvasTest {
   private Bitmap targetBitmap;
   private Bitmap imageBitmap;
@@ -53,16 +53,24 @@ public class ShadowCanvasTest {
   }
 
   @Test
+  public void shouldDescribeBitmapDrawing_withDestinationRectF() throws Exception {
+    Canvas canvas = new Canvas(targetBitmap);
+    canvas.drawBitmap(imageBitmap, new Rect(1,2,3,4), new RectF(5.0f,6.0f,7.5f,8.5f), new Paint());
+
+    assertEquals("Bitmap for file:/an/image.jpg at (5.0,6.0) with height=2.5 and width=2.5 taken from Rect(1, 2 - 3, 4)", shadowOf(canvas).getDescription());
+  }
+
+  @Test
   public void shouldDescribeBitmapDrawing_WithMatrix() throws Exception {
     Canvas canvas = new Canvas(targetBitmap);
     canvas.drawBitmap(imageBitmap, new Matrix(), new Paint());
     canvas.drawBitmap(imageBitmap, new Matrix(), new Paint());
 
-    assertEquals("Bitmap for file:/an/image.jpg transformed by matrix\n" +
-        "Bitmap for file:/an/image.jpg transformed by matrix", shadowOf(canvas).getDescription());
+    assertEquals("Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]\n" +
+        "Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]", shadowOf(canvas).getDescription());
 
-    assertEquals("Bitmap for file:/an/image.jpg transformed by matrix\n" +
-        "Bitmap for file:/an/image.jpg transformed by matrix", shadowOf(targetBitmap).getDescription());
+    assertEquals("Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]\n" +
+        "Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]", shadowOf(targetBitmap).getDescription());
   }
 
   @Test
@@ -71,8 +79,8 @@ public class ShadowCanvasTest {
     canvas.drawBitmap(imageBitmap, new Matrix(), new Paint());
     canvas.drawBitmap(imageBitmap, new Matrix(), new Paint());
 
-    assertEquals("Bitmap for file:/an/image.jpg transformed by matrix\n" +
-        "Bitmap for file:/an/image.jpg transformed by matrix", ShadowCanvas.visualize(canvas));
+    assertEquals("Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]\n" +
+        "Bitmap for file:/an/image.jpg transformed by Matrix[pre=[], set={}, post=[]]", ShadowCanvas.visualize(canvas));
 
   }
 
@@ -93,13 +101,21 @@ public class ShadowCanvasTest {
     path.lineTo(10, 10);
 
     Paint paint = new Paint();
+    paint.setColor(Color.RED);
     paint.setAlpha(7);
     canvas.drawPath(path, paint);
 
+    // changing the values on this Paint shouldn't affect recorded painted path
+    paint.setColor(Color.BLUE);
+    paint.setAlpha(8);
+
     ShadowCanvas shadow = shadowOf(canvas);
     assertThat(shadow.getPathPaintHistoryCount()).isEqualTo(1);
-    assertEquals(shadowOf(shadow.getDrawnPath(0)).getPoints().get(0), new ShadowPath.Point(10, 10, LINE_TO));
-    assertThat(shadow.getDrawnPathPaint(0)).isEqualTo(paint);
+    ShadowPath drawnPath = shadowOf(shadow.getDrawnPath(0));
+    assertEquals(drawnPath.getPoints().get(0), new ShadowPath.Point(10, 10, LINE_TO));
+    Paint drawnPathPaint = shadow.getDrawnPathPaint(0);
+    assertThat(drawnPathPaint.getColor()).isEqualTo(Color.RED);
+    assertThat(drawnPathPaint.getAlpha()).isEqualTo(7);
   }
 
   @Test

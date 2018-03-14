@@ -1,5 +1,7 @@
 package org.robolectric.internal.dependency;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -12,8 +14,7 @@ import java.util.Date;
 import java.util.zip.CRC32;
 
 public class CachedDependencyResolver implements DependencyResolver {
-  private final static String CACHE_PREFIX_1 = "localArtifactUrls";
-  private final static String CACHE_PREFIX_2 = "localArtifactUrl";
+  private final static String CACHE_PREFIX = "localArtifactUrl";
 
   private final DependencyResolver dependencyResolver;
   private final CacheNamingStrategy cacheNamingStrategy;
@@ -32,22 +33,8 @@ public class CachedDependencyResolver implements DependencyResolver {
   }
 
   @Override
-  public URL[] getLocalArtifactUrls(DependencyJar... dependencies) {
-    final String cacheName = cacheNamingStrategy.getName(CACHE_PREFIX_1, dependencies);
-    final URL[] urlsFromCache = cache.load(cacheName, URL[].class);
-
-    if (urlsFromCache != null && cacheValidationStrategy.isValid(urlsFromCache)) {
-      return urlsFromCache;
-    }
-
-    final URL[] urls = dependencyResolver.getLocalArtifactUrls(dependencies);
-    cache.write(cacheName, urls);
-    return urls;
-  }
-
-  @Override
   public URL getLocalArtifactUrl(DependencyJar dependency) {
-    final String cacheName = cacheNamingStrategy.getName(CACHE_PREFIX_2, dependency);
+    final String cacheName = cacheNamingStrategy.getName(CACHE_PREFIX, dependency);
     final URL urlFromCache = cache.load(cacheName, URL.class);
 
     if (urlFromCache != null && cacheValidationStrategy.isValid(urlFromCache)) {
@@ -87,7 +74,7 @@ public class CachedDependencyResolver implements DependencyResolver {
   }
 
   static class DefaultCacheNamingStrategy implements CacheNamingStrategy {
-    public String getName(String prefix, DependencyJar... dependencies) {
+    @Override public String getName(String prefix, DependencyJar... dependencies) {
       StringBuilder sb = new StringBuilder();
 
       sb.append(prefix)
@@ -103,7 +90,7 @@ public class CachedDependencyResolver implements DependencyResolver {
       }
 
       CRC32 crc = new CRC32();
-      crc.update(sb.toString().getBytes());
+      crc.update(sb.toString().getBytes(UTF_8));
       return crc.getValue() + "";
     }
   }
@@ -126,7 +113,7 @@ public class CachedDependencyResolver implements DependencyResolver {
     public <T extends Serializable> T load(String id, Class<T> type) {
       try {
         File file = new File(dir, id);
-        if (!file.exists() || validTime > 0 && file.lastModified() < new Date().getTime() - validTime) {
+        if (!file.exists() || (validTime > 0 && file.lastModified() < new Date().getTime() - validTime)) {
           return null;
         }
 

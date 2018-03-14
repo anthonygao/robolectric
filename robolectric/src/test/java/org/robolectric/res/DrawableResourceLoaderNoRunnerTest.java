@@ -1,14 +1,20 @@
 package org.robolectric.res;
 
-import org.junit.After;
-import org.junit.Test;
-import org.robolectric.util.ReflectionHelpers;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
+import org.robolectric.res.android.ResTable_config;
+import org.robolectric.util.ReflectionHelpers;
 
-import static org.mockito.Mockito.*;
-
+@RunWith(JUnit4.class)
 public class DrawableResourceLoaderNoRunnerTest {
   private static final String JAR_SEPARATOR = "/";
   private static final String UNIX_SEPARATOR = "/";
@@ -29,6 +35,12 @@ public class DrawableResourceLoaderNoRunnerTest {
       + JAR_SEPARATOR + DRAWABLE_DIR;
 
   private String originalSeparator;
+  private PackageResourceTable resourceTable;
+
+  @Before
+  public void setUp() {
+    resourceTable = new ResourceTableFactory().newResourceTable("org.robolectric");
+  }
 
   @After
   public void tearDown() throws Exception {
@@ -45,7 +57,7 @@ public class DrawableResourceLoaderNoRunnerTest {
 
     Fs.JarFs.JarFsFile mockTestFile = mock(Fs.JarFs.JarFsFile.class);
     when(mockTestFile.getName()).thenReturn("foo.png");
-    when(mockTestFile.getBaseName()).thenReturn("bar.png");
+    when(mockTestFile.getBaseName()).thenReturn("foo");
 
     Fs.JarFs.JarFsFile mockTestDir = mock(Fs.JarFs.JarFsFile.class);
     when(mockTestDir.toString()).thenReturn(JAR_PATH_ON_UNIX);
@@ -54,14 +66,12 @@ public class DrawableResourceLoaderNoRunnerTest {
     when(mockTestDir.isDirectory()).thenReturn(true);
     FsFile mockTestBaseDir = mock(FsFile.class);
     when(mockTestBaseDir.listFiles()).thenReturn(new FsFile[]{mockTestDir});
-    ResourcePath mockResourcePath = mock(ResourcePath.class);
-    setResourceBase(mockTestBaseDir, mockResourcePath);
+    ResourcePath resourcePath = new ResourcePath(null, mockTestBaseDir, null);
 
-    ResBundle<DrawableNode> bundle = mock(ResBundle.class);
-    DrawableResourceLoader testLoader = new DrawableResourceLoader(bundle);
-    testLoader.findDrawableResources(mockResourcePath);
+    DrawableResourceLoader testLoader = new DrawableResourceLoader(resourceTable);
+    testLoader.findDrawableResources(resourcePath);
 
-    verify(bundle).put(eq("drawable"), eq("bar.png"), (DrawableNode) any(), (XmlLoader.XmlContext) any());
+    assertThat(resourceTable.getValue(new ResName("org.robolectric", "drawable", "foo"), new ResTable_config()).isFile()).isTrue();
   }
 
   @Test
@@ -70,7 +80,7 @@ public class DrawableResourceLoaderNoRunnerTest {
 
     FileFsFile mockTestFile = mock(FileFsFile.class);
     when(mockTestFile.getName()).thenReturn("foo.png");
-    when(mockTestFile.getBaseName()).thenReturn("bar.png");
+    when(mockTestFile.getBaseName()).thenReturn("foo");
 
     FileFsFile mockTestDir = mock(FileFsFile.class);
     when(mockTestDir.toString()).thenReturn(FILE_PATH_ON_UNIX);
@@ -79,14 +89,12 @@ public class DrawableResourceLoaderNoRunnerTest {
     when(mockTestDir.isDirectory()).thenReturn(true);
     FsFile mockTestBaseDir = mock(FsFile.class);
     when(mockTestBaseDir.listFiles()).thenReturn(new FsFile[]{mockTestDir});
-    ResourcePath mockResourcePath = mock(ResourcePath.class);
-    setResourceBase(mockTestBaseDir, mockResourcePath);
+    ResourcePath resourcePath = new ResourcePath(null, mockTestBaseDir, null);
 
-    ResBundle<DrawableNode> bundle = mock(ResBundle.class);
-    DrawableResourceLoader testLoader = new DrawableResourceLoader(bundle);
-    testLoader.findDrawableResources(mockResourcePath);
+    DrawableResourceLoader testLoader = new DrawableResourceLoader(resourceTable);
+    testLoader.findDrawableResources(resourcePath);
 
-    verify(bundle).put(eq("drawable"), eq("bar.png"), (DrawableNode) any(), (XmlLoader.XmlContext) any());
+    assertThat(resourceTable.getValue(new ResName("org.robolectric", "drawable", "foo"), new ResTable_config()).isFile()).isTrue();
   }
 
   @Test
@@ -95,7 +103,7 @@ public class DrawableResourceLoaderNoRunnerTest {
 
     Fs.JarFs.JarFsFile mockTestFile = mock(Fs.JarFs.JarFsFile.class);
     when(mockTestFile.getName()).thenReturn("foo.png");
-    when(mockTestFile.getBaseName()).thenReturn("bar.png");
+    when(mockTestFile.getBaseName()).thenReturn("foo");
 
     Fs.JarFs.JarFsFile mockTestDir = mock(Fs.JarFs.JarFsFile.class);
     when(mockTestDir.toString()).thenReturn(JAR_PATH_ON_WINDOWS);
@@ -104,14 +112,12 @@ public class DrawableResourceLoaderNoRunnerTest {
     when(mockTestDir.isDirectory()).thenReturn(true);
     FsFile mockTestBaseDir = mock(FsFile.class);
     when(mockTestBaseDir.listFiles()).thenReturn(new FsFile[]{mockTestDir});
-    ResourcePath mockResourcePath = mock(ResourcePath.class);
-    setResourceBase(mockTestBaseDir, mockResourcePath);
+    ResourcePath resourcePath = new ResourcePath(null, mockTestBaseDir, null);
 
-    ResBundle<DrawableNode> bundle = mock(ResBundle.class);
-    DrawableResourceLoader testLoader = new DrawableResourceLoader(bundle);
-    testLoader.findDrawableResources(mockResourcePath);
+    DrawableResourceLoader testLoader = new DrawableResourceLoader(resourceTable);
+    testLoader.findDrawableResources(resourcePath);
 
-    verify(bundle).put(eq("drawable"), eq("bar.png"), (DrawableNode) any(), (XmlLoader.XmlContext) any());
+    assertThat(resourceTable.getValue(new ResName("org.robolectric", "drawable", "foo"), new ResTable_config()).isFile()).isTrue();
   }
 
   @Test
@@ -120,7 +126,7 @@ public class DrawableResourceLoaderNoRunnerTest {
 
     FileFsFile mockTestFile = mock(FileFsFile.class);
     when(mockTestFile.getName()).thenReturn("foo.png");
-    when(mockTestFile.getBaseName()).thenReturn("bar.png");
+    when(mockTestFile.getBaseName()).thenReturn("foo");
 
     FileFsFile mockTestDir = mock(FileFsFile.class);
     when(mockTestDir.toString()).thenReturn(FILE_PATH_ON_WINDOWS);
@@ -129,25 +135,17 @@ public class DrawableResourceLoaderNoRunnerTest {
     when(mockTestDir.isDirectory()).thenReturn(true);
     FsFile mockTestBaseDir = mock(FsFile.class);
     when(mockTestBaseDir.listFiles()).thenReturn(new FsFile[]{mockTestDir});
-    ResourcePath mockResourcePath = mock(ResourcePath.class);
-    setResourceBase(mockTestBaseDir, mockResourcePath);
+    ResourcePath resourcePath = new ResourcePath(null, mockTestBaseDir, null);
 
-    ResBundle<DrawableNode> bundle = mock(ResBundle.class);
-    DrawableResourceLoader testLoader = new DrawableResourceLoader(bundle);
-    testLoader.findDrawableResources(mockResourcePath);
+    DrawableResourceLoader testLoader = new DrawableResourceLoader(resourceTable);
+    testLoader.findDrawableResources(resourcePath);
 
-    verify(bundle).put(eq("drawable"), eq("bar.png"), (DrawableNode) any(), (XmlLoader.XmlContext) any());
+    assertThat(resourceTable.getValue(new ResName("org.robolectric", "drawable", "foo"), new ResTable_config()).isFile()).isTrue();
   }
 
   private void setFileSeparator(String separator) throws Exception {
     Field field = File.class.getDeclaredField("separator");
     originalSeparator = ReflectionHelpers.getStaticField(field);
     ReflectionHelpers.setStaticField(field, separator);
-  }
-
-  private void setResourceBase(FsFile mockTestBaseDir, ResourcePath mockResourcePath) throws NoSuchFieldException, IllegalAccessException {
-    Field resourceBase = ResourcePath.class.getDeclaredField("resourceBase");
-    resourceBase.setAccessible(true);
-    resourceBase.set(mockResourcePath, mockTestBaseDir);
   }
 }

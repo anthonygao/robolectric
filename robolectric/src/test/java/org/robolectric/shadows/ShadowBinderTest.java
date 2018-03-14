@@ -1,27 +1,31 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 import android.os.Binder;
 import android.os.Parcel;
 import android.os.RemoteException;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import static junit.framework.Assert.assertTrue;
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowBinderTest {
   @Test
   public void transactCallsOnTransact() throws Exception {
     TestBinder testBinder = new TestBinder();
     Parcel data = Parcel.obtain();
     Parcel reply = Parcel.obtain();
+    data.writeString("Hello Robolectric");
     assertTrue(testBinder.transact(2, data, reply, 3));
     assertThat(testBinder.code).isEqualTo(2);
     assertThat(testBinder.data).isSameAs(data);
     assertThat(testBinder.reply).isSameAs(reply);
     assertThat(testBinder.flags).isEqualTo(3);
+    reply.readException();
+    assertThat(reply.readString()).isEqualTo("Hello Robolectric");
   }
 
   static class TestBinder extends Binder {
@@ -36,7 +40,32 @@ public class ShadowBinderTest {
       this.data = data;
       this.reply = reply;
       this.flags = flags;
+      String string = data.readString();
+      reply.writeNoException();
+      reply.writeString(string);
       return true;
+    }
+  }
+
+  @Test
+  public void thrownExceptionIsParceled() throws Exception {
+    TestThrowingBinder testThrowingBinder = new TestThrowingBinder();
+    Parcel data = Parcel.obtain();
+    Parcel reply = Parcel.obtain();
+    testThrowingBinder.transact(2, data, reply, 3);
+    try {
+      reply.readException();
+      fail();  // Expect thrown
+    } catch (SecurityException e) {
+      assertThat(e.getMessage()).isEqualTo("Halt! Who goes there?");
+    }
+  }
+
+  static class TestThrowingBinder extends Binder {
+
+    @Override
+    protected boolean onTransact(int code, Parcel data, Parcel reply, int flags) throws RemoteException {
+      throw new SecurityException("Halt! Who goes there?");
     }
   }
 

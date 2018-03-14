@@ -1,5 +1,10 @@
 package org.robolectric.shadows;
 
+import static android.app.DownloadManager.Request;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+import static org.robolectric.shadows.ShadowDownloadManager.ShadowRequest;
+
 import android.app.DownloadManager;
 import android.database.Cursor;
 import android.net.Uri;
@@ -7,14 +12,9 @@ import android.util.Pair;
 import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import static android.app.DownloadManager.Request;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-import static org.robolectric.shadows.ShadowDownloadManager.ShadowRequest;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowDownloadManagerTest {
 
   private final Uri uri = Uri.parse("http://example.com/foo.mp4");
@@ -139,4 +139,24 @@ public class ShadowDownloadManagerTest {
     ShadowDownloadManager manager = new ShadowDownloadManager();
     assertThat(manager.query(new DownloadManager.Query())).isNotNull();
   }
+
+  @Test
+  public void query_shouldReturnAll() {
+    ShadowDownloadManager manager = new ShadowDownloadManager();
+    long firstId = manager.enqueue(request.setDestinationUri(destination));
+    Uri secondUri = Uri.parse("http://example.com/foo2.mp4");
+    Uri secondDestination = Uri.parse("file:///storage/foo2.mp4");
+    Request secondRequest = new Request(secondUri);
+    long secondId = manager.enqueue(secondRequest.setDestinationUri(secondDestination));
+    Cursor cursor = manager.query(new DownloadManager.Query());
+
+    cursor.moveToNext();
+    assertThat(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_URI))).isEqualTo(uri.toString());
+    assertThat(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))).isEqualTo(destination.toString());
+
+    cursor.moveToNext();
+    assertThat(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_URI))).isEqualTo(secondUri.toString());
+    assertThat(cursor.getString(cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI))).isEqualTo(secondDestination.toString());
+  }
+
 }

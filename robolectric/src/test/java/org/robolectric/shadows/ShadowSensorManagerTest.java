@@ -1,22 +1,26 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.content.Context;
 import android.hardware.Sensor;
+import android.hardware.SensorDirectChannel;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.os.Build;
+import android.os.MemoryFile;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.internal.Shadow;
+import org.robolectric.annotation.Config;
+import org.robolectric.shadow.api.Shadow;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowSensorManagerTest {
 
   private SensorManager sensorManager;
@@ -32,6 +36,16 @@ public class ShadowSensorManagerTest {
   public void tearDown() {
     sensorManager = null;
     shadow = null;
+  }
+
+  @Test
+  @Config(minSdk = Build.VERSION_CODES.O)
+  public void createDirectChannel() throws Exception {
+    SensorDirectChannel channel = (SensorDirectChannel) sensorManager.createDirectChannel(new MemoryFile("name", 10));
+    assertThat(channel.isValid()).isTrue();
+
+    channel.close();
+    assertThat(channel.isValid()).isFalse();
   }
 
   @Test
@@ -89,7 +103,7 @@ public class ShadowSensorManagerTest {
     assertThat(sensorManager.getSensorList(0)).isNotNull();
   }
 
-  private class TestSensorEventListener implements SensorEventListener {
+  private static class TestSensorEventListener implements SensorEventListener {
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {

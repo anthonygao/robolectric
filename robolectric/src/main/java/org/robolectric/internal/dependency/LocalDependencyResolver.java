@@ -1,8 +1,6 @@
 package org.robolectric.internal.dependency;
 
 import java.io.File;
-import java.lang.String;
-import java.lang.StringBuilder;
 import java.net.MalformedURLException;
 import java.net.URL;
 
@@ -30,17 +28,6 @@ public class LocalDependencyResolver implements DependencyResolver {
         .append(dependency.getType());
 
     return fileToUrl(validateFile(new File(offlineJarDir, filenameBuilder.toString())));
-  }
-
-  @Override
-  public URL[] getLocalArtifactUrls(DependencyJar... dependencies) {
-    URL[] urls = new URL[dependencies.length];
-
-    for (int i=0; i<dependencies.length; i++) {
-      urls[i] = getLocalArtifactUrl(dependencies[i]);
-    }
-
-    return urls;
   }
 
   /**

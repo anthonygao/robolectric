@@ -1,15 +1,14 @@
 package org.robolectric.internal.dependency;
 
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Hashtable;
 import org.apache.maven.artifact.ant.DependenciesTask;
 import org.apache.maven.artifact.ant.RemoteRepository;
 import org.apache.maven.model.Dependency;
 import org.apache.tools.ant.Project;
 import org.robolectric.RoboSettings;
 import org.robolectric.util.Util;
-
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Hashtable;
 
 public class MavenDependencyResolver implements DependencyResolver {
   private final Project project = new Project();
@@ -25,11 +24,15 @@ public class MavenDependencyResolver implements DependencyResolver {
     this.repositoryId = repositoryId;
   }
 
+  @Override
+  public URL[] getLocalArtifactUrls(DependencyJar dependency) {
+    return getLocalArtifactUrls(new DependencyJar[] {dependency});
+  }
+
   /**
    * Get an array of local artifact URLs for the given dependencies. The order of the URLs is guaranteed to be the
    * same as the input order of dependencies, i.e., urls[i] is the local artifact URL for dependencies[i].
    */
-  @Override
   public URL[] getLocalArtifactUrls(DependencyJar... dependencies) {
     DependenciesTask dependenciesTask = createDependenciesTask();
     configureMaven(dependenciesTask);

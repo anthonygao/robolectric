@@ -1,17 +1,19 @@
 package org.robolectric.shadows;
 
-import android.net.wifi.WifiInfo;
-import android.net.wifi.WifiManager;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
-
 import static android.content.Context.WIFI_SERVICE;
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.RuntimeEnvironment.application;
 import static org.robolectric.Shadows.shadowOf;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
+
+@RunWith(RobolectricTestRunner.class)
 public class ShadowWifiInfoTest {
 
   @Test
@@ -65,5 +67,44 @@ public class ShadowWifiInfoTest {
     wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
     wifiInfo = wifiManager.getConnectionInfo();
     assertThat(wifiInfo.getRssi()).isEqualTo(10);
+  }
+
+  @Test
+  public void shouldReturnLinkSpeed() {
+    WifiManager wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getLinkSpeed()).isEqualTo(-1);
+
+    shadowOf(wifiInfo).setLinkSpeed(10);
+
+    wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getLinkSpeed()).isEqualTo(10);
+  }
+
+  @Test @Config(minSdk = LOLLIPOP)
+  public void shouldReturnFrequency() {
+    WifiManager wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getFrequency()).isEqualTo(-1);
+
+    shadowOf(wifiInfo).setFrequency(10);
+
+    wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getFrequency()).isEqualTo(10);
+  }
+
+  @Test
+  public void shouldReturnNetworkId() {
+    WifiManager wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getNetworkId()).isEqualTo(-1);
+
+    shadowOf(wifiInfo).setNetworkId(10);
+
+    wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+    wifiInfo = wifiManager.getConnectionInfo();
+    assertThat(wifiInfo.getNetworkId()).isEqualTo(10);
   }
 }

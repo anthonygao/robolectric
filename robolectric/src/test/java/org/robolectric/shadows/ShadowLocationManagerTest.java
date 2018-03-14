@@ -1,5 +1,15 @@
 package org.robolectric.shadows;
 
+import static android.location.LocationManager.GPS_PROVIDER;
+import static android.location.LocationManager.NETWORK_PROVIDER;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -9,28 +19,20 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import junit.framework.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
 
-import static android.location.LocationManager.GPS_PROVIDER;
-import static android.location.LocationManager.NETWORK_PROVIDER;
-import static junit.framework.Assert.*;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertSame;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowLocationManagerTest {
   private LocationManager locationManager;
   private ShadowLocationManager shadowLocationManager;
@@ -396,25 +398,29 @@ public class ShadowLocationManagerTest {
 
     shadowLocationManager.simulateLocation(location1);
     shadowLocationManager.simulateLocation(location2);
-    assertThat(listener.location).isEqualTo(location1);
+    assertThat(listener.location.getTime()).isEqualTo(location1.getTime());
   }
 
   @Test
   public void simulateLocation_shouldNotNotifyListenerIfLessThanMinimumDistance() throws Exception {
     TestLocationListener listener = new TestLocationListener();
-    shadowLocationManager.requestLocationUpdates(GPS_PROVIDER, 0, 200000, listener);
+    locationManager.requestLocationUpdates(GPS_PROVIDER, 0, 200000, listener);
 
     Location location1 = new Location(GPS_PROVIDER);
-    location1.setLatitude(0);
-    location1.setLongitude(0);
+    location1.setLatitude(1);
+    location1.setLongitude(2);
+    location1.setTime(0);
 
     Location location2 = new Location(GPS_PROVIDER);
-    location2.setLatitude(1);
-    location2.setLongitude(1);
+    location2.setLatitude(1.5);
+    location2.setLongitude(2.5);
+    location2.setTime(1000);
 
     shadowLocationManager.simulateLocation(location1);
     shadowLocationManager.simulateLocation(location2);
-    assertThat(listener.location).isEqualTo(location1);
+
+    assertThat(listener.location.getLatitude()).isEqualTo(1);
+    assertThat(listener.location.getLongitude()).isEqualTo(2);
   }
 
   @Test
@@ -430,6 +436,15 @@ public class ShadowLocationManagerTest {
     assertThat(shadowLocationManager.getRequestLocationUpdateListeners().size()).isEqualTo(0);
   }
 
+  @Test
+  public void requestLocationUpdates_shouldNotRegisterDuplicateListeners() throws Exception {
+    TestLocationListener listener = new TestLocationListener();
+    shadowLocationManager.requestLocationUpdates(GPS_PROVIDER, 0, 0, listener);
+    shadowLocationManager.requestLocationUpdates(GPS_PROVIDER, 0, 0, listener);
+    shadowLocationManager.simulateLocation(new Location(GPS_PROVIDER));
+    assertThat(listener.updateCount).isEqualTo(1);
+  }
+
   private Listener addGpsListenerToLocationManager() {
     Listener listener = new TestGpsListener();
     locationManager.addGpsStatusListener(listener);
@@ -437,12 +452,14 @@ public class ShadowLocationManagerTest {
   }
 
   private static class TestLocationListener implements LocationListener {
-    public boolean providerEnabled;
-    public Location location;
+    boolean providerEnabled;
+    Location location;
+    int updateCount;
 
     @Override
     public void onLocationChanged(Location location) {
       this.location = location;
+      updateCount++;
     }
 
     @Override
@@ -485,7 +502,7 @@ public class ShadowLocationManagerTest {
     }
   }
 
-  private class TestGpsListener implements Listener {
+  private static class TestGpsListener implements Listener {
 
     @Override
     public void onGpsStatusChanged(int event) {

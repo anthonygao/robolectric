@@ -1,33 +1,26 @@
 package org.robolectric.shadows;
 
-import android.graphics.Typeface;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.manifest.AndroidManifest;
-import org.robolectric.test.TemporaryAsset;
-
-import java.io.File;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.graphics.Typeface;
+import java.io.File;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RuntimeEnvironment;
+import org.robolectric.res.FileFsFile;
+import org.robolectric.util.TestUtil;
+
+@RunWith(RobolectricTestRunner.class)
 public class ShadowTypefaceTest {
   private File fontFile;
-  @Rule public TemporaryAsset temporaryAsset = new TemporaryAsset();
 
   @Before
   public void setup() throws Exception {
-    AndroidManifest appManifest = shadowOf(RuntimeEnvironment.application).getAppManifest();
-    fontFile = temporaryAsset.createFile(appManifest, "myFont.ttf", "myFontData");
-
-    List<AndroidManifest> libraryManifests = appManifest.getLibraryManifests();
-    temporaryAsset.createFile(libraryManifests.get(0), "libFont.ttf", "libFontData");
+    fontFile =
+        ((FileFsFile) TestUtil.resourcesBaseDir().join("assets/myFont.ttf")).getFile();
   }
 
   @Test
@@ -74,10 +67,10 @@ public class ShadowTypefaceTest {
 
   @Test
   public void createFromAsset_shouldCreateTypeface() {
-    Typeface typeface = Typeface.createFromAsset(RuntimeEnvironment.application.getAssets(), "libFont.ttf");
+    Typeface typeface = Typeface.createFromAsset(RuntimeEnvironment.application.getAssets(), "myFont.ttf");
 
     assertThat(typeface.getStyle()).isEqualTo(Typeface.NORMAL);
-    assertThat(shadowOf(typeface).getFontDescription().getFamilyName()).isEqualTo("libFont.ttf");
+    assertThat(shadowOf(typeface).getFontDescription().getFamilyName()).isEqualTo("myFont.ttf");
     assertThat(shadowOf(typeface).getFontDescription().getStyle()).isEqualTo(Typeface.NORMAL);
   }
 

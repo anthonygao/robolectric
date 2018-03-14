@@ -1,47 +1,41 @@
 package org.robolectric.shadows;
 
+import static android.content.res.Configuration.SCREENLAYOUT_UNDEFINED;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import android.content.res.Configuration;
+import android.os.Build;
+import java.util.Locale;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.Shadows;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
 
-import java.util.Locale;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowConfigurationTest {
 
   private Configuration configuration;
-  private ShadowConfiguration shConfiguration;
 
   @Before
   public void setUp() throws Exception {
     configuration = new Configuration();
-    shConfiguration = Shadows.shadowOf(configuration);
   }
 
   @Test
   public void setToDefaultsShouldSetRealDefaults() {
     configuration.setToDefaults();
     assertThat(configuration.fontScale).isEqualTo(1);
+    assertThat(configuration.screenLayout).isEqualTo(SCREENLAYOUT_UNDEFINED);
   }
 
   @Test
-  public void setToDefaultsShouldOverrideScreenLayout() {
-    configuration.setToDefaults();
-    assertThat(configuration.screenLayout).isEqualTo(Configuration.SCREENLAYOUT_LONG_NO | Configuration.SCREENLAYOUT_SIZE_NORMAL);
-  }
-
-  @Test
+  @Config(minSdk = Build.VERSION_CODES.JELLY_BEAN_MR1)
   public void testSetLocale() {
-    shConfiguration.setLocale( Locale.US );
+    configuration.setLocale( Locale.US );
     assertThat(configuration.locale).isEqualTo(Locale.US);
 
-    shConfiguration.setLocale( Locale.FRANCE);
+    configuration.setLocale( Locale.FRANCE);
     assertThat(configuration.locale).isEqualTo(Locale.FRANCE);
   }
 

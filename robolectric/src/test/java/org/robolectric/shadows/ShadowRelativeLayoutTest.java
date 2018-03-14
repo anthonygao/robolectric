@@ -1,23 +1,24 @@
 package org.robolectric.shadows;
 
-import android.os.Build;
+import static android.os.Build.VERSION_CODES.JELLY_BEAN;
+import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR1;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.RelativeLayout;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 import org.robolectric.annotation.Config;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowRelativeLayoutTest {
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.JELLY_BEAN_MR2)
-  public void getRules_shouldShowAddRuleData_forApiLevel18() throws Exception {
+  @Config(minSdk = JELLY_BEAN_MR1)
+  public void getRules_shouldShowAddRuleData_sinceApiLevel17() throws Exception {
     ImageView imageView = new ImageView(RuntimeEnvironment.application);
     RelativeLayout layout = new RelativeLayout(RuntimeEnvironment.application);
     layout.addView(imageView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
@@ -29,8 +30,8 @@ public class ShadowRelativeLayoutTest {
   }
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.JELLY_BEAN)
-  public void getRules_shouldShowAddRuleData_forApiLevel16() throws Exception {
+  @Config(maxSdk = JELLY_BEAN)
+  public void getRules_shouldShowAddRuleData_uptoApiLevel16() throws Exception {
     ImageView imageView = new ImageView(RuntimeEnvironment.application);
     RelativeLayout layout = new RelativeLayout(RuntimeEnvironment.application);
     layout.addView(imageView, new RelativeLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));

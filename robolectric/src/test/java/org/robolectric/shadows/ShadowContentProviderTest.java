@@ -1,67 +1,22 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.KITKAT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.content.ContentProvider;
-import android.content.ContentValues;
-import android.database.Cursor;
-import android.net.Uri;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.annotation.Config;
+import org.robolectric.shadows.testing.TestContentProvider1;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowContentProviderTest {
-
-  class TestContentProvider extends ContentProvider {
-
-    @Override
-    public int delete(Uri arg0, String arg1, String[] arg2) {
-      return 0;
-    }
-
-    @Override
-    public String getType(Uri arg0) {
-      return null;
-    }
-
-    @Override
-    public Uri insert(Uri arg0, ContentValues arg1) {
-      return null;
-    }
-
-    @Override
-    public boolean onCreate() {
-      return false;
-    }
-
-    @Override
-    public Cursor query(Uri arg0, String[] arg1, String arg2,
-              String[] arg3, String arg4) {
-      return null;
-    }
-
-    @Override
-    public int update(Uri arg0, ContentValues arg1, String arg2,
-              String[] arg3) {
-      return 0;
-    }
-
+  @Config(minSdk = KITKAT)
+  @Test public void testSetCallingPackage() throws Exception {
+    ContentProvider provider = new TestContentProvider1();
+    shadowOf(provider).setCallingPackage("calling-package");
+    assertThat(provider.getCallingPackage()).isEqualTo("calling-package");
   }
-
-  TestContentProvider provider;
-
-  @Before public void instantiateProvider() {
-    provider = new TestContentProvider();
-  }
-
-  @Test public void hasAContext() {
-    assertThat(provider.getContext()).isNotNull();
-  }
-
-  @Test public void canGetAResolver() {
-    assertThat(provider.getContext().getContentResolver()).isNotNull();
-  }
-
 }

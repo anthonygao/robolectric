@@ -1,31 +1,28 @@
 package org.robolectric.shadows;
 
-import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
-
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.robolectric.Robolectric;
-import org.robolectric.TestRunners;
-import org.robolectric.util.ReflectionHelpers;
-import org.robolectric.util.Scheduler;
-import org.robolectric.util.TestRunnable;
-import org.robolectric.util.Transcript;
-
-import java.util.ArrayList;
-import java.util.List;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.robolectric.Shadows.shadowOf;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
 
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
+import org.robolectric.util.ReflectionHelpers;
+import org.robolectric.util.Scheduler;
+import org.robolectric.util.TestRunnable;
+
+@RunWith(RobolectricTestRunner.class)
 public class ShadowHandlerTest {
-  private Transcript transcript;
+  private List<String> transcript;
   TestRunnable scratchRunnable = new TestRunnable();
 
   private Handler.Callback callback = new Handler.Callback() {
@@ -40,7 +37,7 @@ public class ShadowHandlerTest {
 
   @Before
   public void setUp() throws Exception {
-    transcript = new Transcript();
+    transcript = new ArrayList<>();
   }
 
   @Test
@@ -55,7 +52,7 @@ public class ShadowHandlerTest {
 
     shadowOf(looper).idle();
 
-    transcript.assertEventsSoFar("first thing", "second thing");
+    assertThat(transcript).containsExactly("first thing", "second thing");
   }
 
   @Test
@@ -68,7 +65,7 @@ public class ShadowHandlerTest {
 
     shadowOf(Looper.myLooper()).idle();
 
-    transcript.assertEventsSoFar("first thing", "second thing");
+    assertThat(transcript).containsExactly("first thing", "second thing");
   }
 
   private static Looper newLooper(boolean canQuit) {
@@ -93,7 +90,7 @@ public class ShadowHandlerTest {
 
     shadowOf(looper2).idle();
 
-    transcript.assertEventsSoFar("second thing");
+    assertThat(transcript).containsExactly("second thing");
   }
 
   @Test
@@ -498,9 +495,9 @@ public class ShadowHandlerTest {
 
     final long startTime = Robolectric.getForegroundThreadScheduler().getCurrentTime();
     h.sendEmptyMessage(0);
-    h.sendEmptyMessageDelayed(0, 4000l);
+    h.sendEmptyMessageDelayed(0, 4000L);
     Robolectric.getForegroundThreadScheduler().advanceToLastPostedRunnable();
-    h.sendEmptyMessageDelayed(0, 12000l);
+    h.sendEmptyMessageDelayed(0, 12000L);
     Robolectric.getForegroundThreadScheduler().advanceToLastPostedRunnable();
 
     assertThat(whens).as("whens").containsExactly(startTime, startTime + 4000, startTime + 16000);

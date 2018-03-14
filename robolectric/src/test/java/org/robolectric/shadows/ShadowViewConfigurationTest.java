@@ -1,24 +1,21 @@
 package org.robolectric.shadows;
 
-import android.app.Activity;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.view.ViewConfiguration;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 
-import static junit.framework.Assert.assertEquals;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowViewConfigurationTest {
 
   @Test
   public void methodsShouldReturnAndroidConstants() {
-    Activity context = new Activity();
-    ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
+    ViewConfiguration viewConfiguration = ViewConfiguration.get(RuntimeEnvironment.application);
 
     assertEquals(10, ViewConfiguration.getScrollBarSize());
     assertEquals(250, ViewConfiguration.getScrollBarFadeDuration());
@@ -37,9 +34,10 @@ public class ShadowViewConfigurationTest {
     assertEquals(320 * 480 * 4, ViewConfiguration.getMaximumDrawingCacheSize());
     assertEquals(3000, ViewConfiguration.getZoomControlsTimeout());
     assertEquals(500, ViewConfiguration.getGlobalActionKeyTimeout());
-    assertEquals(0.015f, ViewConfiguration.getScrollFriction());
+    assertThat(ViewConfiguration.getScrollFriction()).isEqualTo(0.015f);
 
-    assertEquals(1f, context.getResources().getDisplayMetrics().density);
+    assertThat(RuntimeEnvironment.application.getResources().getDisplayMetrics().density)
+        .isEqualTo(1f);
 
     assertEquals(10, viewConfiguration.getScaledScrollBarSize());
     assertEquals(12, viewConfiguration.getScaledFadingEdgeLength());
@@ -54,9 +52,8 @@ public class ShadowViewConfigurationTest {
 
   @Test
   public void methodsShouldReturnScaledAndroidConstantsDependingOnPixelDensity() {
-    Activity context = new Activity();
-    shadowOf(context.getResources()).setDensity(1.5f);
-    ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
+    shadowOf(RuntimeEnvironment.application.getResources()).setDensity(1.5f);
+    ViewConfiguration viewConfiguration = ViewConfiguration.get(RuntimeEnvironment.application);
 
     assertEquals(15, viewConfiguration.getScaledScrollBarSize());
     assertEquals(18, viewConfiguration.getScaledFadingEdgeLength());

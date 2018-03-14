@@ -1,16 +1,13 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.view.ViewGroup;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
-/**
- * {@link org.robolectric.shadows.ShadowViewGroup.ShadowMarginLayoutParams} test suite.
- */
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowMarginLayoutParamsTest {
 
   @Test

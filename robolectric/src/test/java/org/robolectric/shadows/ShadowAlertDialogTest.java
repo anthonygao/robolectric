@@ -1,37 +1,35 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.LOLLIPOP;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.robolectric.RuntimeEnvironment.application;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
-import android.os.Build;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
 import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
+import org.robolectric.android.CustomView;
 import org.robolectric.annotation.Config;
-import org.robolectric.util.CustomView;
-import org.robolectric.util.Transcript;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static junit.framework.Assert.assertFalse;
-import static junit.framework.Assert.assertNull;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.robolectric.RuntimeEnvironment.application;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowAlertDialogTest {
 
   @Test
@@ -126,7 +124,7 @@ public class ShadowAlertDialogTest {
   }
 
   @Test
-  @Config(sdk = Build.VERSION_CODES.LOLLIPOP)
+  @Config(minSdk = LOLLIPOP)
   public void shouldSetView_withLayoutId() throws Exception {
     AlertDialog.Builder builder = new AlertDialog.Builder(application);
     builder.setView(R.layout.custom_layout);
@@ -201,7 +199,7 @@ public class ShadowAlertDialogTest {
     ShadowAlertDialog shadowAlertDialog = shadowOf(alert);
     assertThat(shadowAlertDialog.getTitle().toString()).isEqualTo("title");
     assertThat(shadowAlertDialog.getItems().length).isEqualTo(2);
-    assertEquals(shadowAlertDialog.getItems()[0], "Aloha");
+    assertThat(shadowAlertDialog.getItems()[0]).isEqualTo("Aloha");
     assertThat(shadowOf(ShadowAlertDialog.getLatestAlertDialog())).isSameAs(shadowAlertDialog);
     assertThat(ShadowAlertDialog.getLatestAlertDialog()).isSameAs(alert);
   }
@@ -226,8 +224,8 @@ public class ShadowAlertDialogTest {
 
     assertTrue(alert.isShowing());
     ShadowAlertDialog shadowAlertDialog = shadowOf(alert);
-    assertEquals(shadowAlertDialog.getAdapter().getCount(), 3);
-    assertEquals(shadowAlertDialog.getAdapter().getItem(0), 99);
+    assertThat(shadowAlertDialog.getAdapter().getCount()).isEqualTo(3);
+    assertThat(shadowAlertDialog.getAdapter().getItem(0)).isEqualTo(99);
   }
 
   @Test
@@ -259,10 +257,11 @@ public class ShadowAlertDialogTest {
 
     ShadowAlertDialog shadowAlertDialog = shadowOf(alert);
     shadowAlertDialog.clickOnItem(0);
-    listener.assertEventsSoFar("clicked on 0");
+    assertThat(listener.transcript).containsExactly("clicked on 0");
+    listener.transcript.clear();
 
     shadowAlertDialog.clickOnItem(1);
-    listener.assertEventsSoFar("clicked on 1");
+    assertThat(listener.transcript).containsExactly("clicked on 1");
 
   }
 
@@ -271,7 +270,7 @@ public class ShadowAlertDialogTest {
     AlertDialog dialog = new AlertDialog(RuntimeEnvironment.application) {
     };
 
-    assertThat(dialog.findViewById(99)).isNull();
+    assertThat((View) dialog.findViewById(99)).isNull();
 
     dialog.setContentView(R.layout.main);
     assertNotNull(dialog.findViewById(R.id.title));
@@ -314,9 +313,12 @@ public class ShadowAlertDialogTest {
     assertThat(alertController.getIconId()).isEqualTo(R.drawable.an_image);
   }
 
-  private static class TestDialogOnClickListener extends Transcript implements DialogInterface.OnClickListener {
+  private static class TestDialogOnClickListener implements DialogInterface.OnClickListener {
+    private final ArrayList<String> transcript = new ArrayList<>();
+
+    @Override
     public void onClick(DialogInterface dialog, int item) {
-      add("clicked on " + item);
+      transcript.add("clicked on " + item);
     }
   }
 }

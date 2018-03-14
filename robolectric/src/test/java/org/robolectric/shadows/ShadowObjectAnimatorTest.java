@@ -1,20 +1,42 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
+import java.util.ArrayList;
+import java.util.List;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.TestRunners;
+import org.robolectric.RobolectricTestRunner;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowObjectAnimatorTest {
   private final AnimatorTarget target = new AnimatorTarget();
-  private final Animator.AnimatorListener listener = mock(Animator.AnimatorListener.class);
+  private List<String> listenerEvents = new ArrayList<>();
+
+  private final Animator.AnimatorListener listener = new Animator.AnimatorListener() {
+    @Override
+    public void onAnimationStart(Animator animation) {
+      listenerEvents.add("started");
+    }
+
+    @Override
+    public void onAnimationEnd(Animator animation) {
+      listenerEvents.add("ended");
+    }
+
+    @Override
+    public void onAnimationCancel(Animator animation) {
+      listenerEvents.add("cancelled");
+    }
+
+    @Override
+    public void onAnimationRepeat(Animator animation) {
+      listenerEvents.add("repeated");
+    }
+  };
 
   @Test
   public void start_shouldRunAnimation() {
@@ -25,12 +47,12 @@ public class ShadowObjectAnimatorTest {
     animator.addListener(listener);
     animator.start();
 
-    verify(listener).onAnimationStart(animator);
+    assertThat(listenerEvents).containsExactly("started");
     assertThat(target.getTransparency()).isEqualTo(0);
 
     Robolectric.flushForegroundThreadScheduler();
 
-    verify(listener).onAnimationEnd(animator);
+    assertThat(listenerEvents).containsExactly("started", "ended");
     assertThat(target.getTransparency()).isEqualTo(4);
   }
 

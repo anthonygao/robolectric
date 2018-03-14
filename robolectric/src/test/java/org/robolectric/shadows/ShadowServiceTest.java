@@ -1,28 +1,25 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Service;
-import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.media.MediaScannerConnection;
 import android.os.IBinder;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
-import org.robolectric.internal.Shadow;
+import org.robolectric.shadow.api.Shadow;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowServiceTest {
   private MyService service ;
   private ShadowService shadow;
@@ -35,25 +32,10 @@ public class ShadowServiceTest {
   public void setup() {
     service = Robolectric.setupService(MyService.class);
     shadow = shadowOf(service);
-    notBuilder = new Notification.Builder(
-        service).setSmallIcon(1).setContentTitle("Test")
+    notBuilder = new Notification.Builder(service)
+        .setSmallIcon(1)
+        .setContentTitle("Test")
         .setContentText("Hi there");
-  }
-
-  @Test(expected = IllegalStateException.class)
-  public void shouldComplainIfServiceIsDestroyedWithRegisteredBroadcastReceivers() throws Exception {
-    service.registerReceiver(new AppWidgetProvider(), new IntentFilter());
-    service.onDestroy();
-  }
-
-  @Test
-  public void shouldNotComplainIfServiceIsDestroyedWhileAnotherServiceHasRegisteredBroadcastReceivers()
-    throws Exception {
-
-    MyService service1 = new MyService();
-    MyService service2 = new MyService();
-    service2.registerReceiver(new AppWidgetProvider(), new IntentFilter());
-    service1.onDestroy(); // should not throw exception
   }
 
   @Test
@@ -61,9 +43,9 @@ public class ShadowServiceTest {
     ShadowApplication shadowApplication = shadowOf(RuntimeEnvironment.application);
     ServiceConnection conn = Shadow.newInstanceOf(MediaScannerConnection.class);
     service.bindService(new Intent("dummy"), conn, 0);
-    assertThat(shadowApplication.getUnboundServiceConnections().size()).isEqualTo(0);
+    assertThat(shadowApplication.getUnboundServiceConnections()).isEmpty();
     service.unbindService(conn);
-    assertThat(shadowApplication.getUnboundServiceConnections().size()).isEqualTo(1);
+    assertThat(shadowApplication.getUnboundServiceConnections()).hasSize(1);
   }
 
   @Test
@@ -74,7 +56,7 @@ public class ShadowServiceTest {
 
   @Test(expected = IllegalArgumentException.class)
   public void shouldUnbindServiceWithExceptionWhenRequested() {
-    shadow.setUnbindServiceShouldThrowIllegalArgument(true);
+    ShadowApplication.getInstance().setUnbindServiceShouldThrowIllegalArgument(true);
     ServiceConnection conn = Shadow.newInstanceOf(MediaScannerConnection.class);
     service.unbindService(conn);
   }

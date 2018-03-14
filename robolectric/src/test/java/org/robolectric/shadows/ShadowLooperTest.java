@@ -1,30 +1,28 @@
 package org.robolectric.shadows;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.robolectric.Shadows.shadowOf;
+
 import android.app.Application;
 import android.content.Context;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
-
+import java.util.ArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 import org.junit.runner.RunWith;
 import org.robolectric.RoboSettings;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.TestRunners;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.Scheduler;
 
-import java.util.ArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.robolectric.Shadows.shadowOf;
-
-@RunWith(TestRunners.MultiApiWithDefaults.class)
+@RunWith(RobolectricTestRunner.class)
 public class ShadowLooperTest {
 
   // testName is used when creating background threads. Makes it
@@ -309,6 +307,30 @@ public class ShadowLooperTest {
     setAdvancedScheduling();
     sLooper.reset();
     assertThat(sLooper.getScheduler()).isSameAs(s);
+  }
+
+  @Test
+  public void resetThreadLoopers_resets_background_thread_schedulers() {
+    HandlerThread backgroundThread = new HandlerThread("resetTest");
+    backgroundThread.start();
+    Looper backgroundLooper = backgroundThread.getLooper();
+    Handler handler = new Handler(backgroundLooper);
+    Runnable empty = new Runnable() {
+      @Override
+      public void run() {}
+    };
+    // There should be at least two iterations of this loop because resetThreadLoopers calls
+    // 'quit' on background loopers once, which also resets the scheduler.
+    for (int i = 0; i < 5; i++) {
+      assertThat(shadowOf(backgroundLooper).getScheduler().size()).isZero();
+      assertThat(shadowOf(backgroundLooper).getScheduler().getCurrentTime()).isEqualTo(100L);
+      handler.post(empty);
+      handler.postDelayed(empty, 5000);
+      // increment scheduler's time by 5000
+      shadowOf(backgroundLooper).runToEndOfTasks();
+      assertThat(shadowOf(backgroundLooper).getScheduler().getCurrentTime()).isEqualTo(5100L);
+      ShadowLooper.resetThreadLoopers();
+    }
   }
 
   @Test

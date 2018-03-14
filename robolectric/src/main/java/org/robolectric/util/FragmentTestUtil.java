@@ -1,13 +1,17 @@
 package org.robolectric.util;
 
-import org.robolectric.Robolectric;
-
 import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.os.Bundle;
 import android.widget.LinearLayout;
+import org.robolectric.Robolectric;
 
+/**
+ * @deprecated Please use {@link Robolectric#buildFragment(Class)} instead. This will be
+ * removed in a forthcoming release,
+ */
+@Deprecated
 public final class FragmentTestUtil {
   
   public static void startFragment(Fragment fragment) {
