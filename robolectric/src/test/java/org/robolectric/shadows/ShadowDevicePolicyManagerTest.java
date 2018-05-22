@@ -11,13 +11,14 @@ import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.N;
 import static android.os.Build.VERSION_CODES.O;
-import static org.assertj.core.api.Assertions.assertThat;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.pm.PackageManager.NameNotFoundException;
 import android.os.Bundle;
 import android.os.UserManager;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ public final class ShadowDevicePolicyManagerTest {
   private ShadowDevicePolicyManager shadowDevicePolicyManager;
   private UserManager userManager;
   private ComponentName testComponent;
+  private ShadowPackageManager shadowPackageManager;
 
   @Before
   public void setUp() {
@@ -50,6 +52,8 @@ public final class ShadowDevicePolicyManagerTest {
         (UserManager) RuntimeEnvironment.application.getSystemService(Context.USER_SERVICE);
 
     testComponent = new ComponentName("com.example.app", "DeviceAdminReceiver");
+
+    shadowPackageManager = shadowOf(RuntimeEnvironment.application.getPackageManager());
   }
 
   @Test
@@ -255,12 +259,27 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   @Config(minSdk = LOLLIPOP)
+  public void isApplicationHiddenShouldReturnFalseForNotExistingApps() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowDevicePolicyManager.setDeviceOwner(testComponent);
+
+    // GIVEN package that is not installed
+    String app = "com.example.non.existing";
+
+    // WHEN DevicePolicyManager#isApplicationHidden is called on the app
+    // THEN it should return false
+    assertThat(devicePolicyManager.isApplicationHidden(testComponent, app)).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = LOLLIPOP)
   public void isApplicationHiddenShouldReturnFalseForAppsByDefault() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowDevicePolicyManager.setDeviceOwner(testComponent);
 
     // GIVEN an app and it's never be set hidden or non hidden
     String app = "com.example.non.hidden";
+    shadowPackageManager.addPackage(app);
 
     // WHEN DevicePolicyManager#isApplicationHidden is called on the app
     // THEN it should return false
@@ -275,6 +294,7 @@ public final class ShadowDevicePolicyManagerTest {
 
     // GIVEN an app and it is hidden
     String hiddenApp = "com.example.hidden";
+    shadowPackageManager.addPackage(hiddenApp);
     devicePolicyManager.setApplicationHidden(testComponent, hiddenApp, true);
 
     // WHEN DevicePolicyManager#isApplicationHidden is called on the app
@@ -290,6 +310,7 @@ public final class ShadowDevicePolicyManagerTest {
 
     // GIVEN an app and it is not hidden
     String nonHiddenApp = "com.example.non.hidden";
+    shadowPackageManager.addPackage(nonHiddenApp);
     devicePolicyManager.setApplicationHidden(testComponent, nonHiddenApp, false);
 
     // WHEN DevicePolicyManager#isApplicationHidden is called on the app
@@ -305,6 +326,7 @@ public final class ShadowDevicePolicyManagerTest {
 
     // GIVEN an app and it is hidden
     String app = "com.example.hidden";
+    shadowPackageManager.addPackage(app);
     devicePolicyManager.setApplicationHidden(testComponent, app, true);
 
     // WHEN DevicePolicyManager#setApplicationHidden is called on the app to unhide it
@@ -316,12 +338,26 @@ public final class ShadowDevicePolicyManagerTest {
 
   @Test
   @Config(minSdk = LOLLIPOP)
+  public void setApplicationHiddenShouldReturnFalseForNotExistingApps() {
+    // GIVEN the caller is the device owner, and thus an active admin
+    shadowDevicePolicyManager.setDeviceOwner(testComponent);
+
+    // WHEN an app is not installed
+    String app = "com.example.not.installed";
+
+    // THEN DevicePolicyManager#setApplicationHidden returns false
+    assertThat(devicePolicyManager.setApplicationHidden(testComponent, app, true)).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = LOLLIPOP)
   public void wasPackageEverHiddenShouldReturnFalseForPackageNeverHidden() {
     // GIVEN the caller is the device owner, and thus an active admin
     shadowDevicePolicyManager.setDeviceOwner(testComponent);
 
     // GIVEN an app and it's never be set hidden or non hidden
     String app = "com.example.non.hidden";
+    shadowPackageManager.addPackage(app);
 
     // WHEN ShadowDevicePolicyManager#wasPackageEverHidden is called with the app
     // THEN it should return false
@@ -336,6 +372,7 @@ public final class ShadowDevicePolicyManagerTest {
 
     // GIVEN an app and it's hidden
     String hiddenApp = "com.example.hidden";
+    shadowPackageManager.addPackage(hiddenApp);
     devicePolicyManager.setApplicationHidden(testComponent, hiddenApp, true);
 
     // WHEN ShadowDevicePolicyManager#wasPackageEverHidden is called with the app
@@ -351,6 +388,7 @@ public final class ShadowDevicePolicyManagerTest {
 
     // GIVEN an app and it was hidden
     String app = "com.example.hidden";
+    shadowPackageManager.addPackage(app);
     devicePolicyManager.setApplicationHidden(testComponent, app, true);
     devicePolicyManager.setApplicationHidden(testComponent, app, false);
 
@@ -476,8 +514,8 @@ public final class ShadowDevicePolicyManagerTest {
     // WHEN DevicePolicyManager#getApplicationRestrictions is called to get the restrictions of the
     // app
     // THEN it should return the empty bundle
-    assertThat(devicePolicyManager.getApplicationRestrictions(testComponent, app))
-        .isEqualTo(Bundle.EMPTY);
+    assertThat(devicePolicyManager.getApplicationRestrictions(testComponent, app).isEmpty())
+        .isTrue();
   }
 
   @Test
@@ -814,5 +852,92 @@ public final class ShadowDevicePolicyManagerTest {
     shadowDevicePolicyManager.setStorageEncryptionStatus(ENCRYPTION_STATUS_ACTIVE_PER_USER);
     assertThat(devicePolicyManager.getStorageEncryptionStatus())
         .isEqualTo(ENCRYPTION_STATUS_ACTIVE_PER_USER);
+  }
+
+  @Test
+  public void setPasswordQuality_Complex() {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+
+    devicePolicyManager.setPasswordQuality(
+        testComponent, DevicePolicyManager.PASSWORD_QUALITY_COMPLEX);
+    devicePolicyManager.setPasswordMinimumLength(testComponent, 7);
+    devicePolicyManager.setPasswordMinimumLetters(testComponent, 2);
+    devicePolicyManager.setPasswordMinimumUpperCase(testComponent, 1);
+
+    assertThat(devicePolicyManager.resetPassword("aaaa", 0)).isFalse();
+    assertThat(devicePolicyManager.resetPassword("aA2!", 0)).isFalse();
+    assertThat(devicePolicyManager.resetPassword("aaaA123", 0)).isFalse();
+    assertThat(devicePolicyManager.resetPassword("AAAA123", 0)).isFalse();
+    assertThat(devicePolicyManager.resetPassword("!!AAAaaa", 0)).isFalse();
+    assertThat(devicePolicyManager.resetPassword("aaAA123!", 0)).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void setPackagesSuspended_suspendsPossible() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+    shadowPackageManager.addPackage("installed");
+    String[] packages = new String[] {"installed", "not.installed"};
+
+    assertThat(devicePolicyManager.setPackagesSuspended(testComponent, packages, true))
+        .isEqualTo(new String[] {"not.installed"});
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void setPackagesSuspended_activateActive() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+    shadowPackageManager.addPackage("package");
+
+    assertThat(
+            devicePolicyManager.setPackagesSuspended(
+                testComponent, new String[] {"package"}, false))
+        .isEmpty();
+    assertThat(devicePolicyManager.isPackageSuspended(testComponent, "package")).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void setPackagesSuspended_cycleSuspension() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+    shadowPackageManager.addPackage("package");
+
+    devicePolicyManager.setPackagesSuspended(testComponent, new String[] {"package"}, true);
+    devicePolicyManager.setPackagesSuspended(testComponent, new String[] {"package"}, false);
+
+    assertThat(devicePolicyManager.isPackageSuspended(testComponent, "package")).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void isPackagesSuspended_defaultsFalse() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+    shadowPackageManager.addPackage("package");
+
+    assertThat(devicePolicyManager.isPackageSuspended(testComponent, "package")).isFalse();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void isPackagesSuspended_trueForSuspended() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+    shadowPackageManager.addPackage("package");
+
+    devicePolicyManager.setPackagesSuspended(testComponent, new String[] {"package"}, true);
+
+    assertThat(devicePolicyManager.isPackageSuspended(testComponent, "package")).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = N)
+  public void isPackagesSuspended_notInstalledPackage() throws Exception {
+    shadowDevicePolicyManager.setProfileOwner(testComponent);
+
+    try {
+      devicePolicyManager.isPackageSuspended(testComponent, "not.installed");
+      fail("expected NameNotFoundException");
+    } catch (NameNotFoundException expected) {
+      // expected
+    }
   }
 }

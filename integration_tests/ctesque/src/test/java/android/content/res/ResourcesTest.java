@@ -23,6 +23,8 @@ import static org.robolectric.R.color.test_ARGB8;
 import static org.robolectric.R.color.test_RGB8;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.drawable.AnimationDrawable;
 import android.graphics.drawable.BitmapDrawable;
@@ -30,9 +32,9 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.NinePatchDrawable;
 import android.os.Build;
-import android.support.test.InstrumentationRegistry;
-import android.support.test.filters.SdkSuppress;
-import android.support.test.runner.AndroidJUnit4;
+import androidx.test.InstrumentationRegistry;
+import androidx.test.filters.SdkSuppress;
+import androidx.test.runner.AndroidJUnit4;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.util.Xml;
@@ -541,7 +543,9 @@ public class ResourcesTest {
   @Test
   public void openRawResource_shouldLoadDrawables() throws Exception {
     InputStream resourceStream = resources.openRawResource(R.drawable.an_image);
-    assertThat(resourceStream).isNotNull();
+    Bitmap bitmap = BitmapFactory.decodeStream(resourceStream);
+    assertThat(bitmap.getHeight()).isEqualTo(53);
+    assertThat(bitmap.getWidth()).isEqualTo(64);
   }
 
   @Test
@@ -872,6 +876,18 @@ public class ResourcesTest {
   }
 
   @Test
+  public void fontTagWithAttributesShouldBeRead() throws Exception {
+    assertThat(resources.getString(R.string.font_tag_with_attribute))
+        .isEqualTo("This string has a font tag");
+  }
+
+  @Test
+  public void linkTagWithAttributesShouldBeRead() throws Exception {
+    assertThat(resources.getString(R.string.link_tag_with_attribute))
+        .isEqualTo("This string has a link tag");
+  }
+
+  @Test
   public void getResourceTypeName_mipmap() {
     assertThat(resources.getResourceTypeName(R.mipmap.mipmap_reference)).isEqualTo("mipmap");
     assertThat(resources.getResourceTypeName(R.mipmap.robolectric)).isEqualTo("mipmap");
@@ -1013,6 +1029,14 @@ public class ResourcesTest {
     assertThat(outValue.type).isEqualTo(TYPE_INT_COLOR_RGB8);
     assertThat(Color.blue(outValue.data)).isEqualTo(4);
   }
+
+  @Test
+  public void getResourceEntryName_forStyle() throws Exception {
+    assertThat(resources.getResourceEntryName(android.R.style.TextAppearance_Small))
+        .isEqualTo("TextAppearance.Small");
+  }
+
+  ///////////////////
 
   private static String findRootTag(XmlResourceParser parser) throws Exception {
     int event;

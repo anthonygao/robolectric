@@ -5,7 +5,7 @@ import static android.app.PendingIntent.FLAG_UPDATE_CURRENT;
 import static android.os.Build.VERSION_CODES.KITKAT;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
-import static org.assertj.core.api.Assertions.assertThat;
+import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
 
 import android.app.Activity;
@@ -196,7 +196,7 @@ public class ShadowAlarmManagerTest {
     alarmManager.cancel(PendingIntent.getBroadcast(context, 0, new Intent("someAction"), 0));
     assertThat(shadowAlarmManager.getScheduledAlarms()).hasSize(0);
   }
-  
+
     @Test
   public void schedule_useRequestCodeToMatchExistingPendingIntents() throws Exception {
     Intent intent = new Intent("ACTION!");

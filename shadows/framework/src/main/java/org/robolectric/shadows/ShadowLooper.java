@@ -2,11 +2,11 @@ package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
 import static org.robolectric.RuntimeEnvironment.isMainThread;
-import static org.robolectric.Shadows.shadowOf;
 import static org.robolectric.shadow.api.Shadow.invokeConstructor;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
 
 import android.os.Looper;
+import android.os.MessageQueue;
 import java.util.Collections;
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -17,6 +17,7 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.annotation.Resetter;
+import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.Scheduler;
 
 /**
@@ -59,6 +60,7 @@ public class ShadowLooper {
             // Reset the schedulers of all loopers. This prevents un-run tasks queued up in static
             // background handlers from leaking to subsequent tests.
             shadowOf(looper).getScheduler().reset();
+            shadowOf(looper.getQueue()).reset();
           }
         }
       }
@@ -125,6 +127,7 @@ public class ShadowLooper {
       quit = true;
       realObject.notifyAll();
       getScheduler().reset();
+      shadowOf(realObject.getQueue()).reset();
     }
   }
 
@@ -352,7 +355,7 @@ public class ShadowLooper {
   public Scheduler getScheduler() {
     return shadowOf(realObject.getQueue()).getScheduler();
   }
-  
+
   public void runPaused(Runnable r) {
     boolean wasPaused = setPaused(true);
     try {
@@ -360,5 +363,13 @@ public class ShadowLooper {
     } finally {
       if (!wasPaused) unPause();
     }
+  }
+
+  private static ShadowLooper shadowOf(Looper looper) {
+    return Shadow.extract(looper);
+  }
+
+  private static ShadowMessageQueue shadowOf(MessageQueue mq) {
+    return Shadow.extract(mq);
   }
 }

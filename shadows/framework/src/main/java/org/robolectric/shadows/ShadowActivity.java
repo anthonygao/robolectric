@@ -3,7 +3,6 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.JELLY_BEAN;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.M;
-import static org.robolectric.Shadows.shadowOf;
 import static org.robolectric.shadow.api.Shadow.directlyOn;
 
 import android.R;
@@ -45,6 +44,7 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.fakes.RoboMenuItem;
+import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
 
 @Implements(Activity.class)
@@ -71,6 +71,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   private boolean mIsTaskRoot = true;
   private Menu optionsMenu;
   private ComponentName callingActivity;
+  private boolean isLockTask;
 
   public void setApplication(Application application) {
     ReflectionHelpers.setField(realActivity, "mApplication", application);
@@ -424,20 +425,20 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
    */
   public IntentForResult getNextStartedActivityForResult() {
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
-    ShadowInstrumentation shadowInstrumentation = shadowOf(activityThread.getInstrumentation());
+    ShadowInstrumentation shadowInstrumentation = Shadow.extract(activityThread.getInstrumentation());
     return shadowInstrumentation.getNextStartedActivityForResult();
   }
 
   /**
    * Returns the most recent {@code Intent} started by
-   * {@link #startActivityForResult(Intent, int)} without consuming it.
+   * {@link Activity#startActivityForResult(Intent, int)} without consuming it.
    *
    * @return the most recently started {@code Intent}, wrapped in
    *         an {@link ShadowActivity.IntentForResult} object
    */
   public IntentForResult peekNextStartedActivityForResult() {
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
-    ShadowInstrumentation shadowInstrumentation = shadowOf(activityThread.getInstrumentation());
+    ShadowInstrumentation shadowInstrumentation = Shadow.extract(activityThread.getInstrumentation());
     return shadowInstrumentation.peekNextStartedActivityForResult();
   }
 
@@ -526,7 +527,7 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
 
   public void receiveResult(Intent requestIntent, int resultCode, Intent resultIntent) {
     ActivityThread activityThread = (ActivityThread) RuntimeEnvironment.getActivityThread();
-    ShadowInstrumentation shadowInstrumentation = shadowOf(activityThread.getInstrumentation());
+    ShadowInstrumentation shadowInstrumentation = Shadow.extract(activityThread.getInstrumentation());
     int requestCode = shadowInstrumentation.getRequestCodeForIntent(requestIntent);
 
     final ActivityInvoker invoker = new ActivityInvoker();
@@ -657,7 +658,36 @@ public class ShadowActivity extends ShadowContextThemeWrapper {
   public final void requestPermissions(String[] permissions, int requestCode) {
   }
 
-    private final class ActivityInvoker {
+  /**
+   * Starts a lock task.
+   *
+   * <p>The status of the lock task can be verified using {@link #isLockTask} method and is only
+   * scoped to this activity. Otherwise this implementation has no effect.
+   */
+  @Implementation(minSdk = LOLLIPOP)
+  protected void startLockTask() {
+    isLockTask = true;
+  }
+
+  /**
+   * Stops a lock task.
+   *
+   * <p>The status of the lock task can be verified using {@link #isLockTask} method and is only
+   * scoped to this activity. Otherwise this implementation has no effect.
+   */
+  @Implementation(minSdk = LOLLIPOP)
+  protected void stopLockTask() {
+    isLockTask = false;
+  }
+
+  /**
+   * Returns if the activity is in the lock task mode.
+   */
+  public boolean isLockTask () {
+    return isLockTask;
+  }
+
+  private final class ActivityInvoker {
     private Method method;
 
     public ActivityInvoker call(final String methodName, final Class... argumentClasses) {

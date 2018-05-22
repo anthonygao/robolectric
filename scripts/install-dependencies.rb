@@ -25,16 +25,16 @@ def concat_maven_file_segments(repo_root_dir, group_id, artifact_id, version, ex
 
   # Add the split group id segments into the path segments
   dep_path_segments << group_id.split(".")
-  
+
   # Then add the artifact id
   dep_path_segments << artifact_id
-  
+
   # Then add the version ID
   dep_path_segments << version
-  
+
   # Finally, add the version file
   dep_path_segments << artifact_file_name
-  
+
   # Concatenate the segments into the target archive
   dep_path_segments.join("/")
 end
@@ -141,9 +141,9 @@ MULTIDEX_TRAILING_VERSION = "1.0.0"
 MULTIDEX_VERSION = "1.0.1"
 
 # Android Support test versions
-ANDROID_SUPPORT_TEST_GROUP_ID = "com.android.support.test"
+ANDROIDX_TEST_GROUP_ID = "androidx.test"
 MONITOR_ARTIFACT_ID = "monitor"
-ANDROID_SUPPORT_TEST_VERSION = "1.0.2-alpha1"
+ANDROIDX_TEST_VERSION = "1.1.0-alpha2"
 
 # Play Services constants
 PLAY_SERVICES_GROUP_ID = "com.google.android.gms"
@@ -166,7 +166,7 @@ PLAY_SERVICES_BASEMENT = "play-services-basement"
 
 # Mavenize all dependencies
 
-install_stubs('P')
+install_stubs('27')
 
 install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, MULTIDEX_ARTIFACT_ID, MULTIDEX_TRAILING_VERSION)
 
@@ -197,4 +197,4 @@ install_supportlib_from_gmaven(SUPPORT_CORE_UTILS_ARTIFACT_ID)
 install_supportlib_from_gmaven(SUPPORT_FRAGMENT_ARTIFACT_ID)
 install_supportlib_from_gmaven('support-media-compat')
 
-install_from_gmaven(ANDROID_SUPPORT_TEST_GROUP_ID, MONITOR_ARTIFACT_ID, ANDROID_SUPPORT_TEST_VERSION)
+install_from_gmaven(ANDROIDX_TEST_GROUP_ID, MONITOR_ARTIFACT_ID, ANDROIDX_TEST_VERSION)

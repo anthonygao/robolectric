@@ -3,8 +3,8 @@ package org.robolectric.shadows;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static android.os.Build.VERSION_CODES.P;
 import static org.robolectric.RuntimeEnvironment.getApiLevel;
-import static org.robolectric.Shadows.shadowOf;
 
+import android.annotation.SuppressLint;
 import android.content.res.AssetManager;
 import android.graphics.FontFamily;
 import android.graphics.Typeface;
@@ -19,10 +19,12 @@ import org.robolectric.annotation.Implements;
 import org.robolectric.annotation.RealObject;
 import org.robolectric.annotation.Resetter;
 import org.robolectric.res.FsFile;
+import org.robolectric.shadow.api.Shadow;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.ReflectionHelpers.ClassParameter;
 
 @Implements(value = Typeface.class, looseSignatures = true)
+@SuppressLint("NewApi")
 public class ShadowTypeface {
   private static Map<Long, FontDesc> FONTS = new HashMap<>();
   private static long nextFontId = 1;
@@ -31,35 +33,36 @@ public class ShadowTypeface {
 
   @HiddenApi
   @Implementation
-  public void __constructor__(int fontId) {
+  protected void __constructor__(int fontId) {
     description = findById((long) fontId);
   }
 
   @HiddenApi
   @Implementation
-  public void __constructor__(long fontId) {
+  protected void __constructor__(long fontId) {
     description = findById(fontId);
   }
 
   @Implementation
-  public static Typeface create(String familyName, int style) {
+  protected static Typeface create(String familyName, int style) {
     return createUnderlyingTypeface(familyName, style);
   }
 
   @Implementation
-  public static Typeface create(Typeface family, int style) {
+  protected static Typeface create(Typeface family, int style) {
     if (family == null) {
       return createUnderlyingTypeface(null, style);
     } else {
-      return createUnderlyingTypeface(shadowOf(family).getFontDescription().getFamilyName(), style);
+      ShadowTypeface shadowTypeface = Shadow.extract(family);
+      return createUnderlyingTypeface(shadowTypeface.getFontDescription().getFamilyName(), style);
     }
   }
 
   @Implementation
-  public static Typeface createFromAsset(AssetManager mgr, String path) {
-    Collection<FsFile> assetDirs = shadowOf(mgr).getAllAssetsDirectories();
+  protected static Typeface createFromAsset(AssetManager mgr, String path) {
+    ShadowAssetManager shadowAssetManager = Shadow.extract(mgr);
+    Collection<FsFile> assetDirs = shadowAssetManager.getAllAssetDirs();
     for (FsFile assetDir : assetDirs) {
-      // check if in zip file too?
       FsFile[] files = assetDir.listFiles(new StartsWith(path));
       FsFile assetFile = assetDir.join(path);
       if (assetFile.exists() || files.length != 0) {
@@ -67,39 +70,39 @@ public class ShadowTypeface {
       }
     }
 
-    throw new RuntimeException("Font not found at " + assetDirs);
+    throw new RuntimeException("Font asset not found " + path);
   }
 
   @Implementation
-  public static Typeface createFromFile(File path) {
+  protected static Typeface createFromFile(File path) {
     String familyName = path.toPath().getFileName().toString();
     return createUnderlyingTypeface(familyName, Typeface.NORMAL);
   }
 
   @Implementation
-  public static Typeface createFromFile(String path) {
+  protected static Typeface createFromFile(String path) {
     return createFromFile(new File(path));
   }
 
   @Implementation
-  public int getStyle() {
+  protected int getStyle() {
     return description.getStyle();
   }
 
   @HiddenApi
   @Implementation(minSdk = LOLLIPOP)
-  public static Typeface createFromFamilies(Object /*FontFamily[]*/ families) {
+  protected static Typeface createFromFamilies(Object /*FontFamily[]*/ families) {
     return null;
   }
 
   @HiddenApi
   @Implementation(minSdk = LOLLIPOP)
-  public static Typeface createFromFamiliesWithDefault(Object /*FontFamily[]*/ families) {
+  protected static Typeface createFromFamiliesWithDefault(Object /*FontFamily[]*/ families) {
     return null;
   }
 
   @Implementation(minSdk = P)
-  public static void buildSystemFallback(String xmlPath, String fontDir,
+  protected static void buildSystemFallback(String xmlPath, String fontDir,
       ArrayMap<String, Typeface> fontMap, ArrayMap<String, FontFamily[]> fallbackMap) {
     fontMap.put("sans-serif", createUnderlyingTypeface("sans-serif", 0));
   }
