@@ -2,8 +2,11 @@ package org.robolectric.android.internal;
 
 import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
+import static org.robolectric.android.internal.ParallelUniverse.registerBroadcastReceivers;
 
 import android.app.Application;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.common.base.Charsets;
 import com.google.common.io.Files;
 import java.io.File;
@@ -14,7 +17,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.robolectric.FakeApp;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.TestFakeApp;
 import org.robolectric.annotation.Config;
@@ -23,7 +25,7 @@ import org.robolectric.res.Fs;
 import org.robolectric.shadows.ShadowApplication;
 import org.robolectric.shadows.testing.TestApplication;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ParallelUniverseCreateApplicationTest {
 
   @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -48,7 +50,7 @@ public class ParallelUniverseCreateApplicationTest {
   }
 
   @Test public void shouldAssignThePackageNameFromTheManifest() throws Exception {
-    Application application = RuntimeEnvironment.application;
+    Application application = ApplicationProvider.getApplicationContext();
 
     assertThat(application.getPackageName()).isEqualTo("org.robolectric");
     assertThat(application).isInstanceOf(TestApplication.class);
@@ -56,6 +58,11 @@ public class ParallelUniverseCreateApplicationTest {
 
   @Test
   public void shouldRegisterReceiversFromTheManifest() throws Exception {
+    // gross:
+    shadowOf((Application) ApplicationProvider.getApplicationContext())
+        .getRegisteredReceivers()
+        .clear();
+
     AndroidManifest appManifest = newConfigWith(
         "<application>"
             + "    <receiver android:name=\"org.robolectric.fakes.ConfigTestReceiver\">"
@@ -65,6 +72,8 @@ public class ParallelUniverseCreateApplicationTest {
             + "    </receiver>"
             + "</application>");
     Application application = ParallelUniverse.createApplication(appManifest, null);
+    shadowOf(application).callAttach(RuntimeEnvironment.systemContext);
+    registerBroadcastReceivers(application, appManifest);
 
     List<ShadowApplication.Wrapper> receivers = shadowOf(application).getRegisteredReceivers();
     assertThat(receivers).hasSize(1);
@@ -115,7 +124,7 @@ public class ParallelUniverseCreateApplicationTest {
         "</manifest>\n";
     File f = temporaryFolder.newFile("whatever.xml");
 
-    Files.write(fileContents, f, Charsets.UTF_8);
+    Files.asCharSink(f, Charsets.UTF_8).write(fileContents);
     return new AndroidManifest(Fs.newFile(f), null, null);
   }
 

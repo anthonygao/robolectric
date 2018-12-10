@@ -12,6 +12,8 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.os.CancellationSignal;
 import android.os.OperationCanceledException;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,10 +22,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class SQLiteDatabaseTest {
     private SQLiteDatabase database;
     private List<SQLiteDatabase> openDatabases = new ArrayList<>();
@@ -32,7 +32,7 @@ public class SQLiteDatabaseTest {
 
     @Before
     public void setUp() throws Exception {
-        databasePath = RuntimeEnvironment.application.getDatabasePath("database.db");
+    databasePath = ApplicationProvider.getApplicationContext().getDatabasePath("database.db");
         databasePath.getParentFile().mkdirs();
 
         database = openOrCreateDatabase(databasePath);
@@ -921,7 +921,7 @@ public class SQLiteDatabaseTest {
     /////////////////////
 
     private SQLiteDatabase openOrCreateDatabase(String name) {
-        return openOrCreateDatabase(RuntimeEnvironment.application.getDatabasePath(name));
+    return openOrCreateDatabase(ApplicationProvider.getApplicationContext().getDatabasePath(name));
     }
 
     private SQLiteDatabase openOrCreateDatabase(File databasePath) {

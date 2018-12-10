@@ -1,21 +1,22 @@
-plugins {
-    id "net.ltgt.errorprone" version "0.0.13"
-}
-
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 27
+    compileSdkVersion 28
+
+    defaultConfig {
+        minSdkVersion 16
+        targetSdkVersion 28
+    }
+
+    compileOptions {
+        sourceCompatibility = '1.8'
+        targetCompatibility = '1.8'
+    }
 
     android {
         testOptions {
             unitTests {
                 includeAndroidResources = true
-                // Temporarily turn off JVM verification as workaround. Should be removed once
-                // espresso 3.0.2-alpha2 is available.
-                all {
-                   jvmArgs '-noverify'
-                }
             }
         }
     }
@@ -25,12 +26,19 @@ android {
 dependencies {
     implementation project(":robolectric")
     implementation "junit:junit:4.12"
-    implementation("androidx.test:runner:1.1.0-alpha2")
+    implementation("androidx.test:runner:1.1.1-beta01")
+    implementation("androidx.appcompat:appcompat:1.0.0")
 
     // Testing dependencies
-    testImplementation("androidx.test:runner:1.1.0-alpha2")
-    testImplementation("androidx.test:rules:1.1.0-alpha2")
-    testImplementation("androidx.test.espresso:espresso-intents:3.1.0-alpha2")
-    testImplementation("androidx.test.espresso:espresso-core:3.1.0-alpha2")
-    testImplementation("com.google.truth:truth:0.36")
+    testImplementation("androidx.test:runner:1.1.1-beta01")
+    testImplementation("androidx.test:rules:1.1.1-beta01")
+    testImplementation("androidx.test.espresso:espresso-intents:3.1.1-beta01")
+    testImplementation("androidx.test.espresso:espresso-core:3.1.1-beta01")
+    testImplementation("androidx.test.ext:truth:1.1.0-beta01")
+    testImplementation("androidx.test:core:1.1.0-beta01")
+    // TODO: this should be a transitive dependency of core...
+    testImplementation("androidx.lifecycle:lifecycle-common:2.0.0")
+    testImplementation("androidx.test.ext:junit:1.1.0-beta01")
+    testImplementation("com.google.truth:truth:0.42")
+
 }

@@ -18,7 +18,7 @@ def concat_maven_file_segments(repo_root_dir, group_id, artifact_id, version, ex
     raise ArgumentError, "Group ID, Artifact ID, Version, and/or Extension arguments are invalid. Please check your inputs."
   end
   # Generate dependency path segments
-  dep_path_segments = []  
+  dep_path_segments = []
   artifact_file_name = "#{artifact_id}-#{version}.#{extension}"
   # Start with the root repo dir
   dep_path_segments << repo_root_dir
@@ -143,7 +143,11 @@ MULTIDEX_VERSION = "1.0.1"
 # Android Support test versions
 ANDROIDX_TEST_GROUP_ID = "androidx.test"
 MONITOR_ARTIFACT_ID = "monitor"
-ANDROIDX_TEST_VERSION = "1.1.0-alpha2"
+CORE_ARTIFACT_ID = "core"
+ANDROIDX_TEST_EXT_GROUP_ID = "androidx.test.ext"
+EXT_JUNIT_ARTIFACT_ID = "junit"
+ANDROIDX_TEST_VERSION = "1.1.1-beta01"
+ANDROIDX_TEST_CORE_VERSION = "1.1.0-beta01"
 
 # Play Services constants
 PLAY_SERVICES_GROUP_ID = "com.google.android.gms"
@@ -156,7 +160,7 @@ PLAY_SERVICES_LEGACY = "play-services"
 # Play Services Base and Basement modules, version 8.4.0 (plus trailing version)
 # Current "play-services" artifact no longer references each sub-module directly. When you
 # Extract its AAR, it only contains a manifest and blank res folder.
-# 
+#
 # As a result, we now have to install "play-services-base" and "play-services-basement"
 # separately and use those versions instead.
 PLAY_SERVICES_TRAILING_VERSION = "8.3.0"
@@ -166,7 +170,7 @@ PLAY_SERVICES_BASEMENT = "play-services-basement"
 
 # Mavenize all dependencies
 
-install_stubs('27')
+install_stubs('28')
 
 install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, MULTIDEX_ARTIFACT_ID, MULTIDEX_TRAILING_VERSION)
 
@@ -176,15 +180,15 @@ install_aar(ANDROID_REPO, ANDROID_SUPPORT_GROUP_ID, MULTIDEX_ARTIFACT_ID, MULTID
 
 install_supportlib_from_gmaven(APPCOMPAT_V7_ARTIFACT_ID)
 
-install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_LEGACY, PLAY_SERVICES_VERSION_6_5_87)
+install_from_gmaven(PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_LEGACY, PLAY_SERVICES_VERSION_6_5_87)
 
-install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TRAILING_VERSION)
+install_from_gmaven(PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_TRAILING_VERSION)
 
-install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_VERSION)
+install_from_gmaven(PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASEMENT, PLAY_SERVICES_VERSION)
 
-install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_TRAILING_VERSION)
+install_from_gmaven(PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_TRAILING_VERSION)
 
-install_aar(GOOGLE_REPO, PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_VERSION)
+install_from_gmaven(PLAY_SERVICES_GROUP_ID, PLAY_SERVICES_BASE, PLAY_SERVICES_VERSION)
 
 # install_aar(MVN_LOCAL, ANDROID_SUPPORT_GROUP_ID, SUPPORT_V4_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION) do |dir|
   # install_jar(ANDROID_SUPPORT_GROUP_ID, INTERNAL_IMPL_ARTIFACT_ID, SUPPORT_LIBRARY_TRAILING_VERSION, "#{dir}/libs/#{INTERNAL_IMPL_ARTIFACT_ID}-#{SUPPORT_LIBRARY_TRAILING_VERSION}.jar")
@@ -198,3 +202,5 @@ install_supportlib_from_gmaven(SUPPORT_FRAGMENT_ARTIFACT_ID)
 install_supportlib_from_gmaven('support-media-compat')
 
 install_from_gmaven(ANDROIDX_TEST_GROUP_ID, MONITOR_ARTIFACT_ID, ANDROIDX_TEST_VERSION)
+install_from_gmaven(ANDROIDX_TEST_GROUP_ID, CORE_ARTIFACT_ID, ANDROIDX_TEST_CORE_VERSION)
+install_from_gmaven(ANDROIDX_TEST_EXT_GROUP_ID, EXT_JUNIT_ARTIFACT_ID, ANDROIDX_TEST_CORE_VERSION)

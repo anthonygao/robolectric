@@ -8,13 +8,14 @@ import static org.robolectric.Shadows.shadowOf;
 
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import java.net.InetAddress;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowWifiInfoTest {
 
   private WifiManager wifiManager;
@@ -22,6 +23,21 @@ public class ShadowWifiInfoTest {
   @Before
   public void setUp() {
     wifiManager = (WifiManager) application.getSystemService(WIFI_SERVICE);
+  }
+
+  @Test
+  public void newInstance_shouldNotCrash() throws Exception {
+    assertThat(ShadowWifiInfo.newInstance()).isNotNull();
+  }
+
+  @Test
+  public void shouldReturnIpAddress() throws Exception {
+    String ipAddress = "192.168.0.1";
+    int expectedIpAddress = 16820416;
+
+    WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+    shadowOf(wifiInfo).setInetAddress(InetAddress.getByName(ipAddress));
+    assertThat(wifiInfo.getIpAddress()).isEqualTo(expectedIpAddress);
   }
 
   @Test

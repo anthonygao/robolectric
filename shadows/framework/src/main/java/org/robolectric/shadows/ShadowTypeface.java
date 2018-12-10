@@ -1,6 +1,9 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
+import static android.os.Build.VERSION_CODES.N_MR1;
+import static android.os.Build.VERSION_CODES.O;
+import static android.os.Build.VERSION_CODES.O_MR1;
 import static android.os.Build.VERSION_CODES.P;
 import static org.robolectric.RuntimeEnvironment.getApiLevel;
 
@@ -73,6 +76,11 @@ public class ShadowTypeface {
     throw new RuntimeException("Font asset not found " + path);
   }
 
+  @Implementation(minSdk = O)
+  protected static Typeface createFromResources(AssetManager mgr, String path, int cookie) {
+    return createUnderlyingTypeface(path, Typeface.NORMAL);
+  }
+
   @Implementation
   protected static Typeface createFromFile(File path) {
     String familyName = path.toPath().getFileName().toString();
@@ -96,9 +104,24 @@ public class ShadowTypeface {
   }
 
   @HiddenApi
-  @Implementation(minSdk = LOLLIPOP)
+  @Implementation(minSdk = LOLLIPOP, maxSdk = N_MR1)
   protected static Typeface createFromFamiliesWithDefault(Object /*FontFamily[]*/ families) {
     return null;
+  }
+
+  @Implementation(minSdk = O, maxSdk = O_MR1)
+  protected static Typeface createFromFamiliesWithDefault(
+      Object /*FontFamily[]*/ families, Object /* int */ weight, Object /* int */ italic) {
+    return createUnderlyingTypeface("fake-font", Typeface.NORMAL);
+  }
+
+  @Implementation(minSdk = P)
+  protected static Typeface createFromFamiliesWithDefault(
+      Object /*FontFamily[]*/ families,
+      Object /* String */ fallbackName,
+      Object /* int */ weight,
+      Object /* int */ italic) {
+    return createUnderlyingTypeface((String) fallbackName, Typeface.NORMAL);
   }
 
   @Implementation(minSdk = P)
@@ -106,6 +129,7 @@ public class ShadowTypeface {
       ArrayMap<String, Typeface> fontMap, ArrayMap<String, FontFamily[]> fallbackMap) {
     fontMap.put("sans-serif", createUnderlyingTypeface("sans-serif", 0));
   }
+
 
   @Resetter
   synchronized public static void reset() {

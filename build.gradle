@@ -4,24 +4,23 @@ buildscript {
     repositories {
         google()
         jcenter()
+        gradlePluginPortal()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.1.0-alpha08'
-        classpath 'com.netflix.nebula:gradle-aggregate-javadocs-plugin:2.2.+'
+        classpath 'com.android.tools.build:gradle:3.2.1'
+        classpath 'net.ltgt.gradle:gradle-errorprone-plugin:0.6'
+        classpath 'com.netflix.nebula:gradle-aggregate-javadocs-plugin:2.2.1'
         classpath 'ch.raffael.pegdown-doclet:pegdown-doclet:1.3'
     }
-}
-
-plugins {
-    id "net.ltgt.apt" version "0.13" // automatic annotation processing
 }
 
 allprojects {
     repositories {
         mavenLocal()
-        jcenter()
         google()
+        jcenter()
+        mavenCentral()
     }
 
     group = "org.robolectric"
@@ -29,7 +28,6 @@ allprojects {
 }
 
 apply plugin: 'idea'
-apply plugin: 'net.ltgt.apt'
 
 project.ext.configAnnotationProcessing = []
 project.afterEvaluate {
@@ -88,11 +86,32 @@ task aggregateTestReports(type: TestReport) {
 
 task prefetchSdks() {
     AndroidSdk.ALL_SDKS.each { androidSdk ->
-        def config = configurations.create("sdk${androidSdk.apiLevel}")
-        dependencies.add("sdk${androidSdk.apiLevel}", androidSdk.coordinates)
-        // causes dependencies to be resolved:
-        config.files
+        doLast {
+            println("Prefetching ${androidSdk.coordinates}...")
+            // prefetch into maven local repo...
+            def mvnCommand = "mvn -q dependency:get -DrepoUrl=http://maven.google.com \
+            -DgroupId=${androidSdk.groupId} -DartifactId=${androidSdk.artifactId} \
+            -Dversion=${androidSdk.version}"
+            shellExec(mvnCommand)
+
+            // prefetch into gradle local cache...
+            def config = configurations.create("sdk${androidSdk.apiLevel}")
+            dependencies.add("sdk${androidSdk.apiLevel}", androidSdk.coordinates)
+            // causes dependencies to be resolved:
+            config.files
+        }
     }
+}
+
+private void shellExec(String mvnCommand) {
+    def process = mvnCommand.execute()
+    def out = new StringBuffer()
+    def err = new StringBuffer()
+    process.consumeProcessOutput(out, err)
+    process.waitFor()
+    if (out.size() > 0) println out
+    if (err.size() > 0) println err
+    if (process.exitValue() != 0) System.exit(1)
 }
 
 task prefetchDependencies() {
@@ -100,10 +119,10 @@ task prefetchDependencies() {
 
     doLast {
         allprojects.each { p ->
-            ['compile', 'runtime', 'testCompile', 'testRuntime'].each { configName ->
-                if (p.configurations.findByName(configName)) {
-                    // causes dependencies to be resolved:
-                    p.configurations[configName].files
+            p.configurations.each { config ->
+                // causes dependencies to be resolved:
+                if (config.isCanBeResolved()) {
+                    config.files
                 }
             }
         }

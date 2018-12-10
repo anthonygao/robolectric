@@ -6,22 +6,22 @@ import static org.junit.Assert.assertNotNull;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.drawable.ColorDrawable;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.R;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.res.AttributeResource;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowTypedArrayTest {
   private Context context;
 
   @Before
   public void setUp() throws Exception {
-    context = RuntimeEnvironment.application;
+    context = ApplicationProvider.getApplicationContext();
   }
 
   @Test
@@ -103,7 +103,8 @@ public class ShadowTypedArrayTest {
             .addAttribute(android.R.attr.background, "#ff777777")
             .build(),
         new int[]{android.R.attr.background});
-    assertThat(typedArray.getDrawable(0)).isEqualTo(new ColorDrawable(0xff777777));
+    ColorDrawable drawable = (ColorDrawable) typedArray.getDrawable(0);
+    assertThat(drawable.getColor()).isEqualTo(0xff777777);
   }
 
   @Test

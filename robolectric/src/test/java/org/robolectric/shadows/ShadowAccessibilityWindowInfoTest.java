@@ -6,13 +6,13 @@ import static org.robolectric.Shadows.shadowOf;
 
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 @Config(minSdk = LOLLIPOP)
 public class ShadowAccessibilityWindowInfoTest {
   private AccessibilityWindowInfo window;
@@ -37,5 +37,13 @@ public class ShadowAccessibilityWindowInfoTest {
     AccessibilityNodeInfo node = AccessibilityNodeInfo.obtain();
     shadow.setRoot(node);
     assertThat(shadow.getRoot()).isEqualTo(node);
+  }
+
+  @Test
+  public void testSetTitle() {
+    assertThat(shadow.getTitle()).isNull();
+    CharSequence title = "Title";
+    shadow.setTitle(title);
+    assertThat(shadow.getTitle()).isEqualTo(title);
   }
 }

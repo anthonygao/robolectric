@@ -2,12 +2,16 @@ package org.robolectric.android.controller;
 
 import static android.os.Build.VERSION_CODES.M;
 import static android.os.Build.VERSION_CODES.O_MR1;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.robolectric.shadow.api.Shadow.extract;
 import static org.robolectric.util.ReflectionHelpers.ClassParameter.from;
 
 import android.app.Activity;
+import android.app.ActivityThread;
 import android.app.Application;
+import android.app.Instrumentation;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -39,7 +43,14 @@ public class ActivityController<T extends Activity> extends ComponentController<
     if (attached) {
       return this;
     }
-
+    // make sure the component is enabled
+    Context context = RuntimeEnvironment.application.getBaseContext();
+    context
+        .getPackageManager()
+        .setComponentEnabledSetting(
+            new ComponentName(context.getPackageName(), component.getClass().getName()),
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+            0);
     ShadowActivity shadowActivity = Shadow.extract(component);
     shadowActivity.callAttach(getIntent());
     attached = true;
@@ -55,12 +66,7 @@ public class ActivityController<T extends Activity> extends ComponentController<
   }
 
   public ActivityController<T> create(final Bundle bundle) {
-    shadowMainLooper.runPaused(new Runnable() {
-      @Override
-      public void run() {
-        ReflectionHelpers.callInstanceMethod(Activity.class, component, "performCreate", from(Bundle.class, bundle));
-      }
-    });
+    shadowMainLooper.runPaused(() -> getInstrumentation().callActivityOnCreate(component, bundle));
     return this;
   }
 
@@ -80,7 +86,9 @@ public class ActivityController<T extends Activity> extends ComponentController<
   }
 
   public ActivityController<T> start() {
-
+    // Start and stop are tricky cases. Unlike other lifecycle methods such as
+    // Instrumentation#callActivityOnPause calls Activity#performPause, Activity#performStop calls
+    // Instrumentation#callActivityOnStop internally so the dependency direction is the opposite.
     if (RuntimeEnvironment.getApiLevel() <= O_MR1) {
       invokeWhilePaused("performStart");
     } else {
@@ -90,7 +98,8 @@ public class ActivityController<T extends Activity> extends ComponentController<
   }
 
   public ActivityController<T> restoreInstanceState(Bundle bundle) {
-    invokeWhilePaused("performRestoreInstanceState", from(Bundle.class, bundle));
+    shadowMainLooper.runPaused(
+        () -> getInstrumentation().callActivityOnRestoreInstanceState(component, bundle));
     return this;
   }
 
@@ -124,18 +133,32 @@ public class ActivityController<T extends Activity> extends ComponentController<
       }
     });
 
-    ViewRootImpl root = component.getWindow().getDecorView().getViewRootImpl();
+    ViewRootImpl root = getViewRoot();
+    // root can be null if activity does not have content attached, or if looper is paused.
+    // this is unusual but leave the check here for legacy compatibility
     if (root != null) {
-      // If a test pause thread before creating an activity, root will be null as runPaused is waiting
-      // Related to issue #1582
-      ((ShadowViewRootImpl) extract(root)).callDispatchResized();
+      callDispatchResized(root);
     }
-
     return this;
   }
 
+  private ViewRootImpl getViewRoot() {
+    return component.getWindow().getDecorView().getViewRootImpl();
+  }
+
+  private void callDispatchResized(ViewRootImpl root) {
+    ((ShadowViewRootImpl) extract(root)).callDispatchResized();
+  }
+
   public ActivityController<T> windowFocusChanged(boolean hasFocus) {
-    ViewRootImpl root = component.getWindow().getDecorView().getViewRootImpl();
+    ViewRootImpl root = getViewRoot();
+    if (root == null) {
+      // root can be null if looper was paused during visible. Flush the looper and try again
+      shadowMainLooper.idle();
+
+      root = checkNotNull(getViewRoot());
+      callDispatchResized(root);
+    }
 
     ReflectionHelpers.callInstanceMethod(root, "windowFocusChanged",
         from(boolean.class, hasFocus), /* hasFocus */
@@ -144,21 +167,25 @@ public class ActivityController<T extends Activity> extends ComponentController<
   }
 
   public ActivityController<T> userLeaving() {
-    invokeWhilePaused("performUserLeaving");
+    shadowMainLooper.runPaused(() -> getInstrumentation().callActivityOnUserLeaving(component));
     return this;
   }
 
   public ActivityController<T> pause() {
-    invokeWhilePaused("performPause");
+    shadowMainLooper.runPaused(() -> getInstrumentation().callActivityOnPause(component));
     return this;
   }
 
   public ActivityController<T> saveInstanceState(Bundle outState) {
-    invokeWhilePaused("performSaveInstanceState", from(Bundle.class, outState));
+    shadowMainLooper.runPaused(
+        () -> getInstrumentation().callActivityOnSaveInstanceState(component, outState));
     return this;
   }
 
   public ActivityController<T> stop() {
+    // Stop and start are tricky cases. Unlike other lifecycle methods such as
+    // Instrumentation#callActivityOnPause calls Activity#performPause, Activity#performStop calls
+    // Instrumentation#callActivityOnStop internally so the dependency direction is the opposite.
     if (RuntimeEnvironment.getApiLevel() <= M) {
       invokeWhilePaused("performStop");
     } else if (RuntimeEnvironment.getApiLevel() <= O_MR1) {
@@ -170,7 +197,7 @@ public class ActivityController<T extends Activity> extends ComponentController<
   }
 
   @Override public ActivityController<T> destroy() {
-    invokeWhilePaused("performDestroy");
+    shadowMainLooper.runPaused(() -> getInstrumentation().callActivityOnDestroy(component));
     return this;
   }
 
@@ -363,5 +390,9 @@ public class ActivityController<T extends Activity> extends ComponentController<
     }
 
     return this;
+  }
+
+  private static Instrumentation getInstrumentation() {
+    return ((ActivityThread) RuntimeEnvironment.getActivityThread()).getInstrumentation();
   }
 }

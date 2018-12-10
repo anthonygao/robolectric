@@ -15,6 +15,7 @@ import android.graphics.Paint;
 import android.os.Build;
 import android.os.Parcel;
 import android.util.DisplayMetrics;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.nio.LongBuffer;
@@ -22,11 +23,10 @@ import java.nio.ShortBuffer;
 import java.util.Arrays;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowBitmapTest {
   @Test
   public void shouldCreateScaledBitmap() throws Exception {
@@ -323,7 +323,7 @@ public class ShadowBitmapTest {
     int height = 10;
 
     int[] pixels = new int[width * height];
-    bitmap = Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888);
+    bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
     bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
 
     bitmap = Bitmap.createBitmap(bitmap);
@@ -340,10 +340,39 @@ public class ShadowBitmapTest {
 
     bitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
     bitmap.getPixels(pixels, 0, width, 0, 0, width, height);
+  }
 
-    // subset of pixels:
-    bitmap = Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888);
-    bitmap.getPixels(pixels, 0, width, 2, 2, 3, 3);
+  @Test
+  public void shouldGetPixelsFromSubsetOfBitmap() {
+    int width = 10;
+    int height = 10;
+    Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+    int offset = 7;
+    int subWidth = 3;
+    int subHeight = 4;
+    int x = 2;
+    int y = 5;
+
+    // Fill a region of the bitmap with increasing redness.
+    int r = 0;
+    for (int y0 = y; y0 < y + subHeight; y0++) {
+      for (int x0 = x; x0 < x + subWidth; x0++) {
+        bitmap.setPixel(x0, y0, packRGB(r++, 0, 0));
+      }
+    }
+
+    // Get the pixels from that region.
+    int[] pixels = new int[offset + subWidth * subHeight];
+    bitmap.getPixels(pixels, offset, subWidth, x, y, subWidth, subHeight);
+
+    // Verify that pixels contains the expected colors.
+    r = 0;
+    int index = offset;
+    for (int y0 = 0; y0 < subHeight; y0++) {
+      for (int x0 = 0; x0 < subWidth; x0++) {
+        assertThat(pixels[index++]).isEqualTo(packRGB(r++, 0, 0));
+      }
+    }
   }
 
   @Test
@@ -549,6 +578,61 @@ public class ShadowBitmapTest {
     shadowBitmap.setConfig(Bitmap.Config.HARDWARE);
 
     original.reconfigure(100, 100, Bitmap.Config.ARGB_8888);
+  }
+
+  @Config(sdk = Build.VERSION_CODES.KITKAT)
+  @Test
+  public void setPremultiplied() {
+    Bitmap original = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    assertThat(original.isPremultiplied()).isFalse();
+    original.setPremultiplied(true);
+    assertThat(original.isPremultiplied()).isTrue();
+    original.setPremultiplied(false);
+    assertThat(original.isPremultiplied()).isFalse();
+  }
+
+  @Test
+  public void sameAs_bitmapsDifferentWidth() {
+    Bitmap original1 = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    Bitmap original2 = Bitmap.createBitmap(101, 100, Bitmap.Config.ARGB_8888);
+    assertThat(original1.sameAs(original2)).isFalse();
+  }
+
+  @Test
+  public void sameAs_bitmapsDifferentHeight() {
+    Bitmap original1 = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    Bitmap original2 = Bitmap.createBitmap(100, 101, Bitmap.Config.ARGB_8888);
+    assertThat(original1.sameAs(original2)).isFalse();
+  }
+
+  @Test
+  public void sameAs_bitmapsDifferentConfig() {
+    Bitmap original1 = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888);
+    Bitmap original2 = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_4444);
+    assertThat(original1.sameAs(original2)).isFalse();
+  }
+
+  @Test
+  public void sameAs_bitmapsDifferentPixels() {
+    int[] pixels1 = new int[] {0, 1, 2, 3};
+    Bitmap original1 = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+    original1.setPixels(pixels1, 0, 1, 0, 0, 2, 2);
+
+    int[] pixels2 = new int[] {3, 2, 1, 0};
+    Bitmap original2 = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+    original2.setPixels(pixels2, 0, 1, 0, 0, 2, 2);
+    assertThat(original1.sameAs(original2)).isFalse();
+  }
+
+  @Test
+  public void sameAs_bitmapsSamePixels() {
+    int[] pixels = new int[] {0, 1, 2, 3};
+    Bitmap original1 = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+    original1.setPixels(pixels, 0, 1, 0, 0, 2, 2);
+
+    Bitmap original2 = Bitmap.createBitmap(2, 2, Bitmap.Config.ARGB_8888);
+    original2.setPixels(pixels, 0, 1, 0, 0, 2, 2);
+    assertThat(original1.sameAs(original2)).isTrue();
   }
 
   private static Bitmap create(String name) {

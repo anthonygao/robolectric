@@ -1,7 +1,7 @@
 package org.robolectric.shadows;
 
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
-import static android.os.Build.VERSION_CODES.KITKAT;
+import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -11,15 +11,15 @@ import static org.junit.Assert.assertTrue;
 import android.os.SystemClock;
 import android.text.format.Time;
 import android.util.TimeFormatException;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.util.Arrays;
 import java.util.TimeZone;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 @Config(minSdk = JELLY_BEAN_MR2)
 public class ShadowTimeTest {
   private static final TimeZone DEFAULT_TIMEZONE = TimeZone.getDefault();
@@ -230,7 +230,7 @@ public class ShadowTimeTest {
   }
 
   @Test
-  @Config(maxSdk = KITKAT)
+  @Config(maxSdk = KITKAT_WATCH)
   // this fails on LOLLIPOP+; is the shadow impl of parse3339 correct for pre-LOLLIPOP?
   public void shouldParseRfc3339_withQuestionableFormat() {
     for (String tz : Arrays.asList("Europe/Berlin", "America/Los Angeles", "Australia/Adelaide")) {
@@ -355,7 +355,7 @@ public class ShadowTimeTest {
   }
 
   @Test
-  @Config(maxSdk = KITKAT)
+  @Config(maxSdk = KITKAT_WATCH)
   // these fail on LOLLIPOP+; is the shadow impl of format correct for pre-LOLLIPOP?
   public void shouldFormatAllFormats_withQuestionableResults() throws Exception {
     Time t = new Time("Asia/Tokyo");

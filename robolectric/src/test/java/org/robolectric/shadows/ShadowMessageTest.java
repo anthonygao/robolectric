@@ -1,6 +1,6 @@
 package org.robolectric.shadows;
 
-import static android.os.Build.VERSION_CODES.KITKAT;
+import static android.os.Build.VERSION_CODES.KITKAT_WATCH;
 import static android.os.Build.VERSION_CODES.LOLLIPOP;
 import static com.google.common.truth.Truth.assertThat;
 import static org.robolectric.Shadows.shadowOf;
@@ -8,15 +8,15 @@ import static org.robolectric.Shadows.shadowOf;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.Scheduler;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowMessageTest {
 
   @Test
@@ -191,7 +191,7 @@ public class ShadowMessageTest {
   }
   
   @Test
-  @Config(maxSdk = KITKAT)
+  @Config(maxSdk = KITKAT_WATCH)
   public void recycle_shouldInvokeRealObject19() {
     recycle_shouldInvokeRealObject("recycle");
   }
@@ -210,7 +210,7 @@ public class ShadowMessageTest {
   }
   
   @Test
-  @Config(maxSdk = KITKAT)
+  @Config(maxSdk = KITKAT_WATCH)
   public void recycle_shouldRemoveMessageFromScheduler19() {
     recycle_shouldRemoveMessageFromScheduler();
   }

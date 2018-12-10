@@ -1,8 +1,6 @@
 package org.robolectric;
 
 
-import static android.os.Build.VERSION_CODES.P;
-
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
@@ -227,6 +225,18 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     return builder.build();
   }
 
+  @Override
+  protected void configureSandbox(Sandbox sandbox, FrameworkMethod method) {
+    SdkEnvironment sdkEnvironment = (SdkEnvironment) sandbox;
+    RobolectricFrameworkMethod roboMethod = (RobolectricFrameworkMethod) method;
+    boolean isLegacy = roboMethod.isLegacy();
+    roboMethod.parallelUniverseInterface = getHooksInterface(sdkEnvironment);
+    roboMethod.parallelUniverseInterface.setSdkConfig(roboMethod.sdkConfig);
+    roboMethod.parallelUniverseInterface.setResourcesMode(isLegacy);
+
+    super.configureSandbox(sandbox, method);
+  }
+
   /**
    * An instance of the returned class will be created for each test invocation.
    *
@@ -277,24 +287,6 @@ public class RobolectricTestRunner extends SandboxTestRunner {
         List<SdkConfig> sdksToRun = sdkPicker.selectSdks(config, appManifest);
         RobolectricFrameworkMethod last = null;
         for (SdkConfig sdkConfig : sdksToRun) {
-          
-          if (sdkConfig.getApiLevel() == P) {
-            // Later versions of Android P (4627491) rely on a new implementation of AssetManager
-            // that's not yet present in Robolectric, so force legacy resources.
-            children.add(
-                last =
-                    new RobolectricFrameworkMethod(
-                        frameworkMethod.getMethod(),
-                        appManifest,
-                        sdkConfig,
-                        config,
-                        ResourcesMode.legacy,
-                        RobolectricTestRunner.this.resourcesMode,
-                        alwaysIncludeVariantMarkersInName));
-            continue;
-          }
-          
-
           if (resourcesMode.includeLegacy(appManifest)) {
             children.add(
                 last =
@@ -342,7 +334,7 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     RobolectricFrameworkMethod roboMethod = (RobolectricFrameworkMethod) method;
     SdkConfig sdkConfig = roboMethod.sdkConfig;
     return getSandboxFactory().getSdkEnvironment(
-        createClassLoaderConfig(method), getJarResolver(), sdkConfig);
+        createClassLoaderConfig(method), sdkConfig, roboMethod.isLegacy(), getJarResolver());
   }
 
   protected SandboxFactory getSandboxFactory() {
@@ -367,6 +359,11 @@ public class RobolectricTestRunner extends SandboxTestRunner {
             + roboMethod.getMethod().getName() + ": sdk=" + sdkConfig.getApiLevel()
             + "; resources=" + roboMethod.resourcesMode);
 
+    if (roboMethod.resourcesMode == ResourcesMode.legacy) {
+      System.out.println(
+          "[Robolectric] NOTICE: legacy resources mode is deprecated; see http://robolectric.org/migrating/#migrating-to-40");
+    }
+
     roboMethod.parallelUniverseInterface = getHooksInterface(sdkEnvironment);
     Class<TestLifecycle> cl = sdkEnvironment.bootstrappedClass(getTestLifecycleClass());
     roboMethod.testLifecycle = ReflectionHelpers.newInstance(cl);
@@ -381,7 +378,6 @@ public class RobolectricTestRunner extends SandboxTestRunner {
         apkLoader,
         bootstrappedMethod,
         roboMethod.config, appManifest,
-        roboMethod.resourcesMode == ResourcesMode.legacy,
         sdkEnvironment
     );
 
@@ -447,7 +443,7 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     }
   }
 
-  Properties getBuildSystemApiProperties() {
+  protected Properties getBuildSystemApiProperties() {
     InputStream resourceAsStream = getClass().getResourceAsStream("/com/android/tools/test_config.properties");
     if (resourceAsStream == null) {
       return null;
@@ -468,9 +464,7 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     }
   }
 
-  /** @deprecated Do not override; provide your own {@link ManifestFactory} instead. */
-  @Deprecated
-  protected AndroidManifest getAppManifest(Config config) {
+  private AndroidManifest getAppManifest(Config config) {
     ManifestFactory manifestFactory = getManifestFactory(config);
     ManifestIdentifier identifier = manifestFactory.identify(config);
 
@@ -665,6 +659,10 @@ public class RobolectricTestRunner extends SandboxTestRunner {
     @Nonnull
     AndroidManifest getAppManifest() {
       return appManifest;
+    }
+
+    public boolean isLegacy() {
+      return resourcesMode == ResourcesMode.legacy;
     }
 
     @Override

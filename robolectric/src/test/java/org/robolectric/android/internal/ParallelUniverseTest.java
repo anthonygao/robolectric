@@ -1,5 +1,6 @@
 package org.robolectric.android.internal;
 
+import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
@@ -7,9 +8,12 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import android.app.Application;
+import android.content.pm.ApplicationInfo;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
+import androidx.test.core.app.ApplicationProvider;
+import java.io.File;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.util.Locale;
@@ -24,13 +28,13 @@ import org.robolectric.BootstrapDeferringRobolectricTestRunner.BootstrapWrapper;
 import org.robolectric.BootstrapDeferringRobolectricTestRunner.RoboInject;
 import org.robolectric.RoboSettings;
 import org.robolectric.RuntimeEnvironment;
-import org.robolectric.Shadows;
 import org.robolectric.android.DeviceConfig;
 import org.robolectric.android.DeviceConfig.ScreenSize;
 import org.robolectric.annotation.Config;
 import org.robolectric.manifest.AndroidManifest;
 import org.robolectric.manifest.RoboNotFoundException;
 import org.robolectric.res.ResourceTable;
+import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowApplication;
 import org.robolectric.shadows.ShadowLooper;
 
@@ -60,7 +64,8 @@ public class ParallelUniverseTest {
     RoboSettings.setUseGlobalScheduler(true);
     try {
       bootstrapWrapper.callSetUpApplicationState();
-      final ShadowApplication shadowApplication = Shadows.shadowOf(RuntimeEnvironment.application);
+      final ShadowApplication shadowApplication =
+          Shadow.extract(ApplicationProvider.getApplicationContext());
       assertThat(shadowApplication.getBackgroundThreadScheduler())
           .isSameAs(shadowApplication.getForegroundThreadScheduler());
       assertThat(RuntimeEnvironment.getMasterScheduler())
@@ -73,7 +78,8 @@ public class ParallelUniverseTest {
   @Test
   public void setUpApplicationState_setsBackgroundScheduler_toBeDifferentToForeground_byDefault() {
     bootstrapWrapper.callSetUpApplicationState();
-    final ShadowApplication shadowApplication = Shadows.shadowOf(RuntimeEnvironment.application);
+    final ShadowApplication shadowApplication =
+        Shadow.extract(ApplicationProvider.getApplicationContext());
     assertThat(shadowApplication.getBackgroundThreadScheduler())
         .isNotSameAs(shadowApplication.getForegroundThreadScheduler());
   }
@@ -119,8 +125,44 @@ public class ParallelUniverseTest {
     String givenQualifiers = "large-land";
     bootstrapWrapper.config = new Config.Builder().setQualifiers(givenQualifiers).build();
     bootstrapWrapper.callSetUpApplicationState();
+
+    String optsForO = RuntimeEnvironment.getApiLevel() >= O
+        ? "nowidecg-lowdr-"
+        : "";
     assertThat(RuntimeEnvironment.getQualifiers())
-        .contains("large-notlong-notround-land-notnight-mdpi-finger-keyssoft-nokeys-navhidden-nonav-v" + Build.VERSION.RESOURCES_SDK_INT);
+        .contains("large-notlong-notround-" + optsForO + "land-notnight-mdpi-finger-keyssoft"
+            + "-nokeys-navhidden-nonav-v"
+            + Build.VERSION.RESOURCES_SDK_INT);
+  }
+
+  @Test
+  public void setUpApplicationState_shouldCreateStorageDirs() throws Exception {
+    bootstrapWrapper.callSetUpApplicationState();
+    ApplicationInfo applicationInfo = ApplicationProvider.getApplicationContext()
+        .getApplicationInfo();
+
+    assertThat(applicationInfo.sourceDir).isNotNull();
+    assertThat(new File(applicationInfo.sourceDir).exists()).isTrue();
+
+    assertThat(applicationInfo.publicSourceDir).isNotNull();
+    assertThat(new File(applicationInfo.publicSourceDir).exists()).isTrue();
+
+    assertThat(applicationInfo.dataDir).isNotNull();
+    assertThat(new File(applicationInfo.dataDir).isDirectory()).isTrue();
+  }
+
+  @Test
+  @Config(minSdk = Build.VERSION_CODES.N)
+  public void setUpApplicationState_shouldCreateStorageDirs_Nplus() throws Exception {
+    bootstrapWrapper.callSetUpApplicationState();
+    ApplicationInfo applicationInfo = ApplicationProvider.getApplicationContext()
+        .getApplicationInfo();
+
+    assertThat(applicationInfo.credentialProtectedDataDir).isNotNull();
+    assertThat(new File(applicationInfo.credentialProtectedDataDir).isDirectory()).isTrue();
+
+    assertThat(applicationInfo.deviceProtectedDataDir).isNotNull();
+    assertThat(new File(applicationInfo.deviceProtectedDataDir).isDirectory()).isTrue();
   }
 
   @Test

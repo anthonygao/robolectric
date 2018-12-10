@@ -1,5 +1,6 @@
 package org.robolectric.shadows;
 
+import static android.os.Build.VERSION_CODES.O;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.fail;
 import static org.robolectric.Shadows.shadowOf;
@@ -16,10 +17,13 @@ import static org.robolectric.shadows.ShadowMediaPlayer.State.STOPPED;
 import static org.robolectric.shadows.ShadowMediaPlayer.addException;
 import static org.robolectric.shadows.util.DataSource.toDataSource;
 
+import android.app.Application;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Looper;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
@@ -37,8 +41,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
+import org.robolectric.annotation.Config;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowMediaPlayer.InvalidStateBehavior;
 import org.robolectric.shadows.ShadowMediaPlayer.MediaEvent;
@@ -48,7 +51,7 @@ import org.robolectric.shadows.util.DataSource;
 import org.robolectric.util.ReflectionHelpers;
 import org.robolectric.util.Scheduler;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowMediaPlayerTest {
 
   private static final String DUMMY_SOURCE = "dummy-source";
@@ -93,6 +96,20 @@ public class ShadowMediaPlayerTest {
     info = new MediaInfo();
     ShadowMediaPlayer.addMediaInfo(defaultSource, info);
     shadowMediaPlayer.doSetDataSource(defaultSource);
+  }
+
+  @Test
+  public void create_withResourceId_shouldSetDataSource() {
+    Application context = ApplicationProvider.getApplicationContext();
+    ShadowMediaPlayer.addMediaInfo(
+        DataSource.toDataSource("android.resource://" + context.getPackageName() + "/123"),
+        new ShadowMediaPlayer.MediaInfo(100, 10));
+
+    MediaPlayer mp = MediaPlayer.create(context, 123);
+    ShadowMediaPlayer shadow = shadowOf(mp);
+    assertThat(shadow.getDataSource())
+        .isEqualTo(
+            DataSource.toDataSource("android.resource://" + context.getPackageName() + "/123"));
   }
 
   @Test
@@ -147,10 +164,10 @@ public class ShadowMediaPlayerTest {
   public void testSetDataSourceUri() throws IOException {
     Map<String, String> headers = new HashMap<>();
     Uri uri = Uri.parse("file:/test");
-    DataSource ds = toDataSource(RuntimeEnvironment.application, uri, headers);
+    DataSource ds = toDataSource(ApplicationProvider.getApplicationContext(), uri, headers);
     ShadowMediaPlayer.addMediaInfo(ds, info);
-    
-    mediaPlayer.setDataSource(RuntimeEnvironment.application, uri, headers);
+
+    mediaPlayer.setDataSource(ApplicationProvider.getApplicationContext(), uri, headers);
 
     assertThat(shadowMediaPlayer.getSourceUri()).named("sourceUri").isSameAs(uri);
     assertThat(shadowMediaPlayer.getDataSource()).named("dataSource").isEqualTo(ds);
@@ -387,6 +404,25 @@ public class ShadowMediaPlayerTest {
 
     scheduler.advanceBy(100);
     assertThat(mediaPlayer.getCurrentPosition()).isEqualTo(1000);
+  }
+
+  @Config(minSdk = O)
+  @Test
+  public void testSeekToMode() {
+    shadowMediaPlayer.setState(PREPARED);
+
+    // This time offset is just to make sure that it doesn't work by
+    // accident because the offsets are calculated relative to 0.
+    scheduler.advanceBy(100);
+
+    mediaPlayer.start();
+
+    scheduler.advanceBy(400);
+    assertThat(mediaPlayer.getCurrentPosition()).isEqualTo(400);
+
+    mediaPlayer.seekTo(600, MediaPlayer.SEEK_CLOSEST);
+    scheduler.advanceBy(0);
+    assertThat(mediaPlayer.getCurrentPosition()).isEqualTo(600);
   }
 
   @Test

@@ -12,17 +12,16 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.MemoryFile;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import com.google.common.base.Optional;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
-import org.robolectric.shadow.api.Shadow;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowSensorManagerTest {
 
   private SensorManager sensorManager;
@@ -30,7 +29,9 @@ public class ShadowSensorManagerTest {
 
   @Before
   public void setUp() {
-    sensorManager = (SensorManager) RuntimeEnvironment.application.getSystemService(Context.SENSOR_SERVICE);
+    sensorManager =
+        (SensorManager)
+            ApplicationProvider.getApplicationContext().getSystemService(Context.SENSOR_SERVICE);
     shadow = shadowOf(sensorManager);
   }
 
@@ -152,8 +153,8 @@ public class ShadowSensorManagerTest {
 
   @Test
   public void getSensor_shouldBeConfigurable() {
-    Sensor sensor = Shadow.newInstanceOf(Sensor.class);
-    shadowOf(sensorManager).addSensor(Sensor.TYPE_ACCELEROMETER, sensor);
+    Sensor sensor = ShadowSensor.newInstance(Sensor.TYPE_ACCELEROMETER);
+    shadowOf(sensorManager).addSensor(sensor);
     assertThat(sensor).isSameAs(sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER));
   }
 

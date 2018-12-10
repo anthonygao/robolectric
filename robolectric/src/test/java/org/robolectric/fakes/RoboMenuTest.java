@@ -7,20 +7,20 @@ import static org.junit.Assert.assertNotNull;
 import android.app.Activity;
 import android.content.Intent;
 import android.view.MenuItem;
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.shadows.ShadowApplication;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class RoboMenuTest {
 
   @Test
   public void addAndRemoveMenuItems() {
-    RoboMenu menu = new RoboMenu(RuntimeEnvironment.application);
+    RoboMenu menu = new RoboMenu(ApplicationProvider.getApplicationContext());
     menu.add(9, 10, 0, org.robolectric.R.string.ok);
 
     RoboMenuItem item = (RoboMenuItem) menu.findItem(10);
@@ -36,7 +36,7 @@ public class RoboMenuTest {
 
   @Test
   public void addSubMenu() {
-    RoboMenu menu = new RoboMenu(RuntimeEnvironment.application);
+    RoboMenu menu = new RoboMenu(ApplicationProvider.getApplicationContext());
     menu.addSubMenu(9, 10, 0, org.robolectric.R.string.ok);
 
     RoboMenuItem item = (RoboMenuItem) menu.findItem(10);
@@ -66,7 +66,7 @@ public class RoboMenuTest {
 
   @Test
   public void add_AddsItemsInOrder() {
-    RoboMenu menu = new RoboMenu(RuntimeEnvironment.application);
+    RoboMenu menu = new RoboMenu(ApplicationProvider.getApplicationContext());
     menu.add(0, 0, 1, "greeting");
     menu.add(0, 0, 0, "hell0");
     menu.add(0, 0, 0, "hello");

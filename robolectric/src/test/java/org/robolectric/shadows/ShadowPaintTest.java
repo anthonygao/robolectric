@@ -7,12 +7,12 @@ import static org.robolectric.Shadows.shadowOf;
 
 import android.graphics.Color;
 import android.graphics.Paint;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.robolectric.RobolectricTestRunner;
 import org.robolectric.shadow.api.Shadow;
 
-@RunWith(RobolectricTestRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ShadowPaintTest {
 
   @Test
@@ -37,11 +37,8 @@ public class ShadowPaintTest {
 
   @Test
   public void testCtor() {
-    Paint paint = Shadow.newInstanceOf(Paint.class);
-    assertFalse(paint.isAntiAlias());
-    ShadowPaint shadowPaint = shadowOf(paint);
-    shadowPaint.__constructor__( Paint.ANTI_ALIAS_FLAG );
-    assertTrue(paint.isAntiAlias());
+    assertThat(new Paint(Paint.ANTI_ALIAS_FLAG).isAntiAlias()).isTrue();
+    assertThat(new Paint(0).isAntiAlias()).isFalse();
   }
 
   @Test
